@@ -129,8 +129,14 @@ void Server::readClient(int clientFd, int epfd)
 
     // Parser requetes 
     Request req;
-    req.InitRequestParser(buffer);
-    req.act_request();            // ← au lieu de handle_get(), utilise act_request qui trie
+    if (!req.InitRequestParser(buffer))   // parsing échoue ?
+    {
+        req.setError(400);                // → prépare une 400
+    }
+    else
+    {
+        req.act_request();                // sinon, traite normalement
+    }         
 
     // stock reponse pour client 
     _responses[clientFd] = req.build_response();

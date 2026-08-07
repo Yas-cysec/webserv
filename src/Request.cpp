@@ -63,9 +63,9 @@ bool Request::parse_headers(std::istringstream& stream)
 
 void Request::parse_body(std::istringstream& stream)
 {
-    std::string line;
-    while (std::getline(stream, line))
-        _requestBody += line + "\n";
+    char c;
+    while (stream.get(c))       // lit UN caractère à la fois
+        _requestBody += c;      // l'ajoute tel quel
 }
 
 
@@ -100,6 +100,12 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
 {
     if (_path == "/")
         _path = "/index.html";
+    if (_path.find("..") != std::string::npos)   // contient ".." ?
+    {
+        _status = 403;
+        _body = "<h1>403 Forbidden</h1>";
+        return false;
+    }
     std::string full_path = "www" + _path; // www/index.html
     std::ifstream file(full_path.c_str());
     if (!file.is_open())
@@ -108,7 +114,6 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
         _body = "<h1>404 Not Found</h1>"; // page erreur simple
         return false; // fichier absen -> error 404
     }
-    _status = 200;
     std::string content,line;
     while (std::getline(file, line))
         content += line + "\n";
@@ -202,6 +207,7 @@ void Request::act_request() // quel requetes c'est ?
 }
 
 std::string Request::build_response() // ajoute la structure http de la reponse pour que http comprenne
+
 {
     std::stringstream response;
     if (_status == 200)
@@ -226,3 +232,41 @@ std::string Request::build_response() // ajoute la structure http de la reponse 
     response << _body;       //  HTML
     return response.str();
 }
+
+void Request::setError(int code)
+{
+    _status = code;
+    _body = "<h1>400 Bad Request</h1>";
+}
+/*
+
+À corriger avant de partir trop loin :
+Mettre les sockets en non-bloquant avec fcntl(..., O_NONBLOCK).
+epoll seul ne rend pas tes sockets non-bloquants.
+
+Garder un buffer par client.
+Là, tu fais un seul recv() puis tu supposes que toute la requête est arrivée. Ce n’est pas toujours vrai.
+
+Gérer les envois partiels.
+send() peut envoyer seulement une partie de la réponse. Il faut garder ce qui reste à envoyer.
+
+Valider vraiment la requête.
+Tu appelles InitRequestParser(), mais tu n’utilises pas son résultat et tu n’appelles pas Parser(). Une requête invalide doit devenir 400, pas continuer normalement.
+
+Corriger le GET statique :
+fichier vide doit être 200, pas 404 ; MIME types ; empêcher ../.
+
+POST doit garder le body exactement comme reçu.
+Ton getline() rajoute des retours à la ligne, donc un vrai fichier binaire serait modifié.
+
+
+1. Mettre tous les sockets en non-bloquant
+2. Garder un buffer de lecture par client
+3. Attendre la requête complète avant de la parser
+4. Garder un buffer d’écriture par client
+5. Reprendre l’envoi si send() n’a envoyé qu’une partie
+6. Nettoyer un client qui coupe la connexion
+7. Répondre 400 si la requête est invalide
+8. Sécuriser GET : pas de ../, fichier vide = 200, bon Content-Type
+9. Garder le body POST exactement comme reçu
+*/

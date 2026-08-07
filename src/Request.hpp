@@ -30,6 +30,7 @@ class Request
         void parse_request_line(std::istringstream& stream);
         bool parse_headers(std::istringstream& stream);
         void parse_body(std::istringstream& stream);
+        void setError(int code);
 
     private: 
     
