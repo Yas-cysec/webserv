@@ -102,7 +102,6 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
         _path = "/index.html";
     std::string full_path = "www" + _path; // www/index.html
     std::ifstream file(full_path.c_str());
-
     if (!file.is_open())
     {
         _status = 404;
@@ -113,6 +112,13 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
     std::string content,line;
     while (std::getline(file, line))
         content += line + "\n";
+    if (content.empty())               // rien lu → sûrement un dossier ou vide
+    {
+        _status = 404;
+        _body = "<h1>404 Not Found</h1>";
+        return false;
+    }
+    _status = 200;
     _body = content; // on stocke pour l'envoyer plus tard (le fichier html..)
     return true;
 }
@@ -130,6 +136,18 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
 
 bool Request::handle_post()
 {
+    if (_requestBody.size() > 1000000)   // ex: max 1 Mo
+    {
+        _status = 413;
+        _body = "<h1>413 Payload Too Large</h1>";
+        return false;
+    }
+    if (_headers.find("Content-Length") == _headers.end())
+    {
+        _status = 400;
+        _body = "<h1>400 Bad Request</h1>";
+        return false;
+    }
     std::string full_path = "www" + _path; // ex : www/upload.txt
 
     std::ofstream file(full_path.c_str()); // ouvre en ecriture.. 
@@ -139,7 +157,6 @@ bool Request::handle_post()
         _body = "<h1>500 Internal Server Error</h1>";
         return false;
     }
-
     file << _requestBody; // ecrit les donnees recus dans le fichier
     file.close();
 
@@ -199,9 +216,13 @@ std::string Request::build_response() // ajoute la structure http de la reponse 
         response << "HTTP/1.1 404 Not Found\r\n";
     else if (_status == 405)
         response << "HTTP/1.1 405 Method Not Allowed\r\n";
+    else if (_status == 413)
+        response << "HTTP/1.1 413 Payload Too Large\r\n";
+    else if (_status == 500)
+        response << "HTTP/1.1 500 Internal Server Error\r\n";
     response << "Content-Length: " << _body.size() << "\r\n";
     response << "Content-Type: text/html\r\n";
     response << "\r\n";      // ligne vide
-    response << _body;       // ton HTML
+    response << _body;       //  HTML
     return response.str();
 }

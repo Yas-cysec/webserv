@@ -5,6 +5,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <unistd.h> 
 
 
 class Request
