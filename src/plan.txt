@@ -1,0 +1,16 @@
+
+
+fichier de config = regle on fait quoi si qqn se co a ce port
+
+
+
+
+1 - on recupere info fichier de config (port pr l'instant)
+
+2 - on stock ce port dans un vector 
+
+3 - on creer socket canal de co -> attache port au canal (bind) -> listen
+
+4 - on stock le fd dans un vector _serverfds (tout les connecteer)
+
+5- on wait clients 

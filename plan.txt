@@ -1,0 +1,65 @@
+
+
+
+1 - creer un prog qui ouvre ecoute port 8080
+
+2 - attendre une co et accepter co
+
+3- lecture du navigatuer 
+
+4 - Lire ce que le navigateur envoie.
+
+5 - tjrs 3 cmd : (1->cmd) (2->path) (3->version du pro)
+
+6 - 
+
+
+
+
+
+
+
+
+8h42
+
+
+questions : 
+
+on lance webserv le programe 
+il lis le fichier de config 
+    q1 : c quoi ce fichier de config ? 
+            c lui qui dis ecoute port 80 et les regles 
+
+
+le client se connecte via le port 8080 
+q1 : vu que le serveur ecoute au port 80 jcapte pas pk 
+    il devrait s'en foutre dans le programme de detecter 
+    si quelqu'un le solicite ou non.. 
+    car il recois deja les reponses bu qu'il ecoute.. 
+
+
+le client lance des actions 
+le serveur doit gerer ses actions en consequence 
+
+lancer des actions = 
+    envoie requete http 
+    lecture requete et parsing
+    verifie regle de config 
+    cherche fichier dans www/
+
+prepare une action au bon navigateur 
+le navigateur affiche le resultat 
+serveur garde la co ouverte ou ferme en fonction de la requete
+il peux gerer d'autre connection avec poll 
+
+
+ok meilleur comprehension mtn. 
+
+on creer notre class server.. 
+elle doit donc mettre en ecoute le port concerner
+
+en 1 le mieux est le fichier de config..
+
+nous devons  creer classe config. elle depend de quoi ? 
+
+chaque regle une part une ? 
