@@ -130,7 +130,7 @@ void Server::readClient(int clientFd, int epfd)
     // Parser requetes 
     Request req;
     req.InitRequestParser(buffer);
-    req.handle_get();
+    req.act_request();            // ← au lieu de handle_get(), utilise act_request qui trie
 
     // stock reponse pour client 
     _responses[clientFd] = req.build_response();
