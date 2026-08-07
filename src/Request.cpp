@@ -77,6 +77,8 @@ bool Request::Parser()
 
 bool Request::handle_get() // cherche le fichier et lit son contenu 
 {
+    if (_path == "/")
+        _path = "/index.html";
     std::string full_path = "www" + _path; // www/index.html
     std::ifstream file(full_path.c_str());
 
