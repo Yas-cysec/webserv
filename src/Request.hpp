@@ -16,6 +16,7 @@ class Request
     std::map<std::string, std::string> _headers; // host -> valeur
     int _status; // code erreur status.. 
     std::string _body;
+    std::string _requestBody;
 
     public :
         bool InitRequestParser(const std::string &buff);
@@ -25,8 +26,9 @@ class Request
         bool handle_post();
         bool handle_delete();
         std::string build_response();
-        //void send_response(int clientfd);
-
+        void parse_request_line(std::istringstream& stream);
+        bool parse_headers(std::istringstream& stream);
+        void parse_body(std::istringstream& stream);
 
     private: 
     

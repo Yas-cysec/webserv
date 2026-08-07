@@ -26,6 +26,49 @@ ligne 2 : on traite la requetes (agir selon ce qui est demander)
 
 */
 
+void Request::parse_request_line(std::istringstream& stream)
+{
+    std::string line;
+    std::getline(stream, line);
+    std::istringstream iss(line);
+    iss >> _type >> _path >> _version;
+}
+
+bool Request::parse_headers(std::istringstream& stream)
+{
+    std::string line;
+    while (std::getline(stream, line))
+    {
+        if (!line.empty() && line[line.size() - 1] == '\r')
+            line.erase(line.size() - 1);
+        if (line.empty())
+            break;
+
+        size_t pos = line.find(":");
+        if (pos == std::string::npos)
+            return false;
+
+        std::string key = line.substr(0, pos);
+        std::string value = line.substr(pos + 1);
+        if (key.empty())
+            return false;
+        if (!value.empty() && value[0] == ' ')
+            value.erase(0, 1);
+        _headers[key] = value;
+    }
+    if (_headers.find("Host") == _headers.end())
+        return false;
+    return true;
+}
+
+void Request::parse_body(std::istringstream& stream)
+{
+    std::string line;
+    while (std::getline(stream, line))
+        _requestBody += line + "\n";
+}
+
+
 bool Request::InitRequestParser(const std::string& buff)
 {
     if (buff.empty())
@@ -34,34 +77,12 @@ bool Request::InitRequestParser(const std::string& buff)
         return false;
     }
     std::istringstream stream(buff); // le creer en flux.
-    std::string line;
 
-    std::getline(stream, line);
-    std::istringstream iss(line); 
-    iss >> _type >> _path >> _version; // stockage ligne 1 
-    
-    
-    while ( std::getline(stream, line)) // a besoin de lire a partir du flux
-    {
-        if (!line.empty() && line[line.size() - 1] == '\r')
-                line.erase(line.size() - 1);   // enlève le \r en fin de ligne
-        if (line.empty()) // fin
-            break;
-        size_t pos = line.find(":"); // trouve le :
-        if (pos == std::string::npos)   // pas de ':' → header invalide
-            return false;
-
-        std::string key = line.substr(0, pos); // avant le :
-        std::string value = line.substr(pos + 1); // apres le :
-        if (key.empty())                // clé vide → invalide
-            return false;
-        if (!value.empty() && value[0] == ' ')   // enlève l'espace de début
-            value.erase(0, 1);
-        _headers[key] = value;
-    }
-    if (_headers.find("Host") == _headers.end())
-            return false;   // Host obligatoire manquant
-    return (true);
+    parse_request_line(stream); // 1 ere ligne parser
+    if (!parse_headers(stream)) // parser headers
+        return false;
+    parse_body(stream); // parse le body
+    return true;
 }
 
 bool Request::Parser()
@@ -96,25 +117,6 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
     return true;
 }
 
-std::string Request::build_response() // ajoute la structure http de la reponse pour que http comprenne
-{
-    std::stringstream response;
-    if (_status == 200)
-        response << "HTTP/1.1 200 OK\r\n";
-    else if (_status == 400)
-        response << "HTTP/1.1 400 Bad Request\r\n";
-    else if (_status == 403)
-        response << "HTTP/1.1 403 Forbidden\r\n";
-    else if (_status == 404)
-        response << "HTTP/1.1 404 Not Found\r\n";
-    else if (_status == 405)
-        response << "HTTP/1.1 405 Method Not Allowed\r\n";
-    response << "Content-Length: " << _body.size() << "\r\n";
-    response << "Content-Type: text/html\r\n";
-    response << "\r\n";      // ligne vide
-    response << _body;       // ton HTML
-    return response.str();
-}
 
 // void Request::send_response(int clientfd) // envoie reponse au client -> page affiche
 // {
@@ -128,8 +130,22 @@ std::string Request::build_response() // ajoute la structure http de la reponse 
 
 bool Request::handle_post()
 {
-    return true;
+    std::string full_path = "www" + _path; // ex : www/upload.txt
 
+    std::ofstream file(full_path.c_str()); // ouvre en ecriture.. 
+     if (!file.is_open())
+    {
+        _status = 500;
+        _body = "<h1>500 Internal Server Error</h1>";
+        return false;
+    }
+
+    file << _requestBody; // ecrit les donnees recus dans le fichier
+    file.close();
+
+    _status = 201; // 201 = created (ressource creer)
+    _body = "<h1>File uploaded</h1>";
+    return true;
 }
 
 bool Request::handle_delete()
@@ -153,6 +169,7 @@ bool Request::handle_delete()
 
 
 void Request::act_request() // quel requetes c'est ? 
+
 {
     if (_type == "GET")
         handle_get();
@@ -165,4 +182,26 @@ void Request::act_request() // quel requetes c'est ?
         _status = 405;
         _body = "<h1>405 Method Not Allowed</h1>";
     }
+}
+
+std::string Request::build_response() // ajoute la structure http de la reponse pour que http comprenne
+{
+    std::stringstream response;
+    if (_status == 200)
+        response << "HTTP/1.1 200 OK\r\n";
+    else if (_status == 201)
+        response << "HTTP/1.1 201 Created\r\n";
+    else if (_status == 400)
+        response << "HTTP/1.1 400 Bad Request\r\n";
+    else if (_status == 403)
+        response << "HTTP/1.1 403 Forbidden\r\n";
+    else if (_status == 404)
+        response << "HTTP/1.1 404 Not Found\r\n";
+    else if (_status == 405)
+        response << "HTTP/1.1 405 Method Not Allowed\r\n";
+    response << "Content-Length: " << _body.size() << "\r\n";
+    response << "Content-Type: text/html\r\n";
+    response << "\r\n";      // ligne vide
+    response << _body;       // ton HTML
+    return response.str();
 }
