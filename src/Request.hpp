@@ -14,6 +14,7 @@ class Request
     std::string _path; // chemin : index.html
     std::string _version; // HTTP/1.1
     std::map<std::string, std::string> _headers; // host -> valeur
+    int _status; // code erreur status.. 
     std::string _body;
 
     public :

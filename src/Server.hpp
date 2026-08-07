@@ -26,7 +26,7 @@ class Server
         bool start(int port); // debut init
         int epollHold(); // init de epoll
         void run(); // gestion du programme
-        void send_response(int clientfd, int epfd);
+        void sendResponse(int clientfd, int epfd);
     private : 
         bool isServerFd(int fd);
         void acceptClient(int serverFd, int epfd);

@@ -78,10 +78,15 @@ bool Request::Parser()
 bool Request::handle_get() // cherche le fichier et lit son contenu 
 {
     std::string full_path = "www" + _path; // www/index.html
-
     std::ifstream file(full_path.c_str());
+
     if (!file.is_open())
+    {
+        _status = 404;
+        _body = "<h1>404 Not Found</h1>"; // page erreur simple
         return false; // fichier absen -> error 404
+    }
+    _status = 200;
     std::string content,line;
     while (std::getline(file, line))
         content += line + "\n";
@@ -92,14 +97,22 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
 std::string Request::build_response() // ajoute la structure http de la reponse pour que http comprenne
 {
     std::stringstream response;
-    response << "HTTP/1.1 200 OK\r\n";
+    if (_status == 200)
+        response << "HTTP/1.1 200 OK\r\n";
+    else if (_status == 400)
+        response << "HTTP/1.1 400 Bad Request\r\n";
+    else if (_status == 403)
+        response << "HTTP/1.1 403 Forbidden\r\n";
+    else if (_status == 404)
+        response << "HTTP/1.1 404 Not Found\r\n";
+    else if (_status == 405)
+        response << "HTTP/1.1 405 Method Not Allowed\r\n";
     response << "Content-Length: " << _body.size() << "\r\n";
     response << "Content-Type: text/html\r\n";
     response << "\r\n";      // ligne vide
     response << _body;       // ton HTML
     return response.str();
 }
-
 
 // void Request::send_response(int clientfd) // envoie reponse au client -> page affiche
 // {
@@ -119,12 +132,25 @@ bool Request::handle_post()
 
 bool Request::handle_delete()
 {
+    std::string full_path = "www" + _path;
+    if (std::remove(full_path.c_str()) == 0) // suppresion reussi
+    {
+        _status = 200;
+        _body = "<h1>File deleted</h1>";
+        return true;
+    }
+    else 
+    {
+        _status = 404; // fichier absent
+        _body = "<h1>404 Not Found</h1>";
+        return false;
+    }
     return true;
 
 }
 
 
-void Request::act_request()
+void Request::act_request() // quel requetes c'est ? 
 {
     if (_type == "GET")
         handle_get();
@@ -132,4 +158,9 @@ void Request::act_request()
         handle_post();
     else if (_type == "DELETE")
         handle_delete();
+    else 
+    {
+        _status = 405;
+        _body = "<h1>405 Method Not Allowed</h1>";
+    }
 }
