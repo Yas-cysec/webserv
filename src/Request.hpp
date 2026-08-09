@@ -18,7 +18,6 @@ class Request
     int _status; // code erreur status.. 
     std::string _body;
     std::string _requestBody;
-
     public :
         bool InitRequestParser(const std::string &buff);
         bool Parser();
