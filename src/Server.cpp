@@ -164,7 +164,7 @@ void Server::readClient(int clientFd, int epfd)
 
     // Parser requetes 
     Request req;
-    if (!req.InitRequestParser(buffer))   // parsing échoue ?
+    if (!req.InitRequestParser(_readBuffers[clientFd]))   // parsing échoue ?
         {
             req.setError(400);                // → prépare une 400
         }
