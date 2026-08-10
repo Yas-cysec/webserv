@@ -132,7 +132,7 @@ bool Server::is_complete(const std::string& buffer) // request complete ?
         return true; // pas de contente lendgt -> pas de body -> complet (get delete)
     // 3 : POST : body a t'il atteint la taille annoncer ? 
     size_t clStart = pos_content_length + content_len.length();
-    int contentLength = std::atoi(buffer.c_str() + clStart); // taille du cl
+    int contentLength = atoi(buffer.c_str() + clStart); // taille du cl
     size_t bodyStart = pos + 4; // debut body apres \r etc.. 
     size_t bodyReceived = buffer.size() - bodyStart; 
     return bodyReceived >= (size_t)contentLength;   // body complet ?
@@ -159,7 +159,7 @@ void Server::readClient(int clientFd, int epfd)
     buffer[bytes] = '\0';
     _readBuffers[clientFd] += buffer;   // ← ACCUMULE au lieu de traiter direct
 
-     if (!isComplete(_readBuffers[clientFd]))   // requête pas complète ?
+     if (!is_complete(_readBuffers[clientFd]))   // requête pas complète ?
         return;  // attend prochain 
 
     // Parser requetes 

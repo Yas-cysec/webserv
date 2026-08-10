@@ -12,6 +12,7 @@
 #include <map>          // std::map
 #include <fcntl.h>
 #include "Request.hpp"
+#include <cstdlib>
 
 class Server
 {
@@ -33,7 +34,7 @@ class Server
         bool isServerFd(int fd);
         void acceptClient(int serverFd, int epfd);
         void readClient(int clientFd, int epfd);
-        bool is_complete(const std::string& buffer)
+        bool is_complete(const std::string& buffer);
 };
 
 
