@@ -138,7 +138,7 @@ bool Config::parse_index(const std::string& line, ServerConfig& server)
         std::cerr << "Erreur : index vide" << std::endl;
         return false;
     }
-    server.setIndex(value);
+    server.set_index(value);
     return true;
 }
 
@@ -284,8 +284,10 @@ bool Config::parseLocation(const std::string& firstLine, std::ifstream& file, Se
             return true;
         }
         if (line.find("allow_methods") != std::string::npos)
+        {
             if (!parse_methods(line, loc))
                 return false;
+        }
         else if (line.find("autoindex") != std::string::npos)
         {
             if (!parse_autoindex(line, loc))
