@@ -276,6 +276,7 @@ bool Config::parseLocation(const std::string& firstLine, std::ifstream& file, Se
     std::string line;
     while (std::getline(file, line))
     {
+        line = cleanSpaces(line); 
         if (line.empty())
             continue;
         if (line == "}")
@@ -378,6 +379,7 @@ bool Config::parseServerBlock(std::ifstream& file)
 
     while (std::getline(file, line))
     {
+        line = cleanSpaces(line); 
         if (line.empty())
             continue;
 
