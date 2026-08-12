@@ -238,7 +238,13 @@ void Request::setError(int code)
     _status = code;
     _body = "<h1>400 Bad Request</h1>";
 }
+
+
+
+
 /*
+
+
 
 À corriger avant de partir trop loin :
 Mettre les sockets en non-bloquant avec fcntl(..., O_NONBLOCK).
@@ -269,4 +275,37 @@ Ton getline() rajoute des retours à la ligne, donc un vrai fichier binaire sera
 7. Répondre 400 si la requête est invalide
 8. Sécuriser GET : pas de ../, fichier vide = 200, bon Content-Type
 9. Garder le body POST exactement comme reçu
+*/
+
+
+/*
+comprehension du non bloquant : 
+notre projet gere client apres client mais tres rapidement illusion de parallele
+
+un buffer par client 
+
+on regele juste en mettant une option Ononblock pour le fd
+on use fcntl (modifie les reglages d'un fd) 
+
+en gros la logique c : 
+
+    disons on a 3 Monsieurs A et B sont lent et C et complet.. 
+        A envoie un bout (on lis -> et met dans _buffer[a] ->
+        check si c pas complet -> on laisse et passe a autre chose
+        B -> pareil 
+        C envoie tout -> tu lis (_buffer[C] complet -> tu traite C 
+            et tu reponds.. 
+voila la logique.. 
+
+avant nous on faisait : 
+    recv (Fonction qui lit ce que le client t'envoie) prend data
+    et met dans buffer.. ca c normal mais en gros le pb c que 
+    on utiliser recv que 1 fois considerant que tout est envoyer 
+    d'un coup... 
+
+        
+    en gros on stoc un buffer par client on continue le programme
+
+    concernant le send aussi on considere qu'on envoie tout d'un coup.. faut gerer
+    ce non bloquant.. 
 */

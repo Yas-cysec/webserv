@@ -1,0 +1,66 @@
+
+
+basic config file: 
+"
+    server {
+    listen 8080;
+}
+
+server {
+    listen 9090;
+}
+"
+
+root : DONE
+index
+client max body size
+
+
+
+- deja root c quoi ? 
+        = dossier de base ou ton serveur cherche les fichiers.. 
+    quand un client demande /index.html.. le serv ne cherche pas
+    index.html mais il cherche dans un dossier precis.. (root)
+    juste le prefixe pour www.. rien de plus..
+    c dans le ficheir de config pr modifier l'emplacement sans 
+    toucher au code... donc pratique.. 
+
+        condition de parsing ?  : 
+                - juste finir avec un ; 
+
+
+- index c quoi ? 
+      = fichier qui a donner quand le client demande un dossier (/)
+        quand tu tape localhost::8080/ tu demande la racine
+        mais un dossier ne s'affiche pas, faut un fichier precis..
+        ce fichier c l'index.. 
+
+        en gros quand on precise pas un fichier mais un dossier / 
+        bah on dois par defaut renvoyer vers un index.. 
+        et en gros chaques dossier a un seul index.. 
+
+
+- client max body size c quoi ? 
+    taille max autoriser poour le body qu'un client envoie.. 
+    quand un client fait un post uploard de fichier.. il envois des donnes
+    et en gros ca ca te dis (je refuse tout body plus gros que X octet)
+    donc ca refuse si c trop gros.. 
+
+location c quoi ? 
+    en gros pour les url qui commence par ce chemin tu applique 
+    ces regles la.. si le client demande un chemin precis bah les regles
+    doivent etre appliquer par ex tu peux gerer un body size plus grand
+    par chemin dedier.. typiquement + de donner si le chemin est /film/upload.. 
+
+    c vraiment un controle pas zone ... 
+    si je met /admin/ bah la aucun controle possible.. 
+    et dans location il y a ce qu'on appele des directives.. 
+    le nom de regles si tu prefere.. 
+
+        directive : 
+    
+        -  allow methods 
+        elle permet de dire j'autorise suelement get ou post delete etc.. 
+
+        - 
+

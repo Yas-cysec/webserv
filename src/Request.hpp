@@ -11,13 +11,14 @@
 class Request
 {
     private: 
-    std::string _type; // get ou post ou delete
-    std::string _path; // chemin : index.html
-    std::string _version; // HTTP/1.1
-    std::map<std::string, std::string> _headers; // host -> valeur
-    int _status; // code erreur status.. 
-    std::string _body;
-    std::string _requestBody;
+        std::string _type; // get ou post ou delete
+        std::string _path; // chemin : index.html
+        std::string _version; // HTTP/1.1
+        std::map<std::string, std::string> _headers; // host -> valeur
+        int _status; // code erreur status.. 
+        std::string _body;
+        std::string _requestBody;
+
     public :
         bool InitRequestParser(const std::string &buff);
         bool Parser();

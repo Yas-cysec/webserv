@@ -140,8 +140,6 @@ bool Server::is_complete(const std::string& buffer) // request complete ?
 }
 
 
-
-
 // -------------------------------------------------
 
 void Server::readClient(int clientFd, int epfd)
@@ -182,7 +180,6 @@ void Server::readClient(int clientFd, int epfd)
     ev.data.fd = clientFd;
     epoll_ctl(epfd, EPOLL_CTL_MOD, clientFd, &ev);
 }
-
 
 
 // -------------------------------------------------
