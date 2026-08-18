@@ -17,24 +17,26 @@
 class Server
 {
     private :
-        ServerConfig _config;
+        std::map<int, std::vector<ServerConfig> > _fdToConfigs; // permet dávoir plus config differente selon server a stocker
         std::vector<int> _serverFds;
         std::vector<int> _clientFds;
         std::map<int, std::string> _responses;   // clientFd → sa réponse à envoyer
-            std::map<int, std::string> _readBuffers;   // fd → ce qu'on a accumulé
+        std::map<int, std::string> _readBuffers;   // fd → ce qu'on a accumulé
+        std::map<int, int> _clientToServerFd;   // clientFd → la porte d'où il vient
 
-    public : 
+    public :
+        Server();
         Server(const ServerConfig &config);
-        bool start(int port); // debut init
+        bool start(int port, const ServerConfig& config); // debut init
         int epollHold(); // init de epoll
         void run(); // gestion du programme
         void sendResponse(int clientfd, int epfd);
-
-    private : 
         bool isServerFd(int fd);
         void acceptClient(int serverFd, int epfd);
         void readClient(int clientFd, int epfd);
         bool is_complete(const std::string& buffer);
+        ServerConfig choose_config(const std::vector<ServerConfig>& configs, Request& req);
+        std::string getHost();
 };
 
 

@@ -17,16 +17,15 @@ int main(int argc, char** argv)
     if (servers.empty())
         return 1;
 
-    // on prend le premier server de la config
-    Server server(servers[0]);
+    Server server;   // constructeur vide
 
-    // on crée une porte pour chaque port
-    const std::vector<int>& ports = servers[0].getPorts();
-    for (std::size_t i = 0; i < ports.size(); i++)
-        server.start(ports[i]);
+    for (std::size_t i = 0; i < servers.size(); i++)          // tous les blocs
+    {
+        const std::vector<int>& ports = servers[i].getPorts();
+        for (std::size_t j = 0; j < ports.size(); j++)         // tous les ports
+            server.start(ports[j], servers[i]);                // port + sa config
+    }
 
-    // on lance le serveur (boucle infinie)
     server.run();
-
     return 0;
 }

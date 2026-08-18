@@ -59,8 +59,54 @@ location c quoi ?
 
         directive : 
     
-        -  allow methods 
+        -  allow_methods 
         elle permet de dire j'autorise suelement get ou post delete etc.. 
 
-        - 
+        - return : 
+        c une redirection va a cette addresse.. par ex si ta
+            location /ancien 
+            return http:// localh  etc../nouveau.. 
+
+        - root :
+            en gros a partir d'un dossier precis on va chercher
+            dans un dossier precis.. 
+            genre location /images
+                root/var/photos.. pour images les fichier de base 
+                a chercher seront dans /var c different du root general.. 
+                c uniuqmenet base sur le dossier correspondant.. 
+        
+
+        - autoindex : afficher la liste des fichier d'un dossier quand
+            il y a pas de fichier index... 
+
+            il y a 2 cas : autoindex on ou off.. 
+            le off -> pas de index html ? erreur 403/404
+            on ? -> pas d'index html ? affiche liste des fichier
+                comme un explorateur.. 
+
+            tu demande /files/ y'a pas index mais c on
+            bah ta une page qui affiche les fichier dispo.. 
+
+        - index : 
+            en fonction du chemin.. il te donne un index precis..
+
+        - upload
+         upload + chemin.. c pour dire ou les fichiesr uploader vont.. 
+        voila pour les directives.. 
+
+
+
+
+error_page c quoi ? 
+            ca creer tes propres pages d'erreurs. 
+            au lieu de h1 404 en dur tu pointe vers un fichier html
+            custom.. 
+            typiquemet error_page 404 /erreur/404.html
+        
+server_name c quoi ?
+            le hostname.. pour servir plusieurs sites sur la meme
+            ip.. 
+            nom de domaine genre 
+            server_name site-a.com;   
+             ← ce bloc répond pour site-a.com
 

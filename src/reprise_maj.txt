@@ -1,0 +1,106 @@
+
+
+
+
+un projet de server http. qui tourne et attend des clients, on recois leurs demande et on repond
+
+client demande une page (on lit et cherche son fichier et on renvoie)
+
+concretement : 
+1) lance le programme avec le fichier de config.
+2) creer un socket (canal de communicaition), attache a un port ce canal (bind)
+    et j'ecoute (listen)
+3) client se connecte sur le port -> et j'accepte
+4) envoie sa demande (requete) et je la lis (recv)
+5) je la comprends (parsing request.hpp, )
+6) j'agis en fonction : 
+        get -> je cherche le fichier et je renvoie
+        post -> recois des donnes et j'ecris un fichier
+        delete je supprime un fichier
+8) je repends (send)
+
+
+erreurs : si y'a des erreurs je dois envoie un code avec une page
+
+
+
+
+WEBSERV — comment ça marche, dans l'ordre
+
+D'abord, je lance le programme avec un fichier de config.
+Ce fichier, il est lu par la classe Config, qui va récupérer
+les règles (le port, le dossier des fichiers, etc.).
+
+Ensuite, je crée un Server. Pour chaque port, j'ouvre une socket,
+je l'attache au port avec bind, puis j'écoute avec listen.
+
+Après, je lance la boucle principale (run). Dedans, epoll surveille
+tout le monde et me dit qui est prêt.
+
+Quand un nouveau client arrive, je l'accepte avec accept.
+Quand un client m'envoie sa demande, je la lis avec recv.
+
+Une fois la demande lue, la classe Request la découpe pour comprendre
+ce que le client veut : la méthode (GET, POST ou DELETE) et le chemin.
+
+Puis j'agis selon la méthode. Si c'est un GET, je cherche le fichier
+demandé et je le lis. Si c'est un POST, j'écris les données reçues
+dans un fichier. Si c'est un DELETE, je supprime le fichier.
+
+Ensuite, je construis la réponse au format HTTP : une ligne de statut,
+des headers, et le contenu.
+
+Enfin, je renvoie cette réponse au client avec send, et il l'affiche.
+
+S'il y a un problème en cours de route, je renvoie un code d'erreur
+(404 si le fichier n'existe pas, 403 si c'est interdit, etc.)
+avec une page d'erreur.
+
+Pour finir, tout ça est non-bloquant : je n'ai qu'un seul fil
+d'exécution, mais grâce à epoll et aux sockets non-bloquants,
+je ne reste jamais bloqué sur un client lent. Je passe de l'un
+à l'autre très vite, ce qui donne l'illusion de gérer tout le monde
+en même temps.
+
+
+═══ CE QUE JE FAIS ACTUELLEMENT : LA CONFIG AVANCÉE ═══
+
+Là, je travaille sur la config avancée. Ça permet de régler beaucoup
+plus de choses dans le fichier .conf, sans toucher au code.
+
+Concrètement, au lieu d'avoir des valeurs fixées en dur dans mon code
+(comme le dossier "www" ou la limite de taille 1000000), je les lis
+depuis le fichier de config. Comme ça, je peux changer le comportement
+du serveur juste en modifiant le .conf.
+
+Ce que j'ajoute à la config :
+- root : le dossier où chercher les fichiers
+- index : le fichier par défaut quand on demande un dossier
+- client_max_body_size : la taille max d'un upload
+- server_name : le nom du serveur
+- error_page : mes propres pages d'erreur
+- location : des règles pour un chemin précis (ex: sur /images,
+  autoriser seulement GET)
+
+donc j'ai finis le parsing (tester si le text a un sens ou non 
+    et j'ai stocker tout ca est dans config.hpp )
+
+
+
+
+ la le probleme quón est confronter : 
+
+ notre main user que server[0]
+ enfaite le soucis etait que si on avait 2 bloc server du
+ meme port par ex bah voir meme sans etre du meme port 
+ bah la config etait la meme pour tous il y avais pas de separation
+en gros on stocker par la config par server ct la meme config 
+pr tout les servers..
+
+
+ fallais donc mettre une map.. pour dire en fonction du port X 
+ on a tel ou tel config (on use un vector pour cela ... une liste)
+ car on peux avoir 2 server pour un meme port.. 
+ (
+
+ )

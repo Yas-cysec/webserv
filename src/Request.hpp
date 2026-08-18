@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <unistd.h> 
+#include "Config.hpp"
 
 
 class Request
@@ -18,6 +19,8 @@ class Request
         int _status; // code erreur status.. 
         std::string _body;
         std::string _requestBody;
+        // config 
+        ServerConfig _config;
 
     public :
         bool InitRequestParser(const std::string &buff);
@@ -31,6 +34,12 @@ class Request
         bool parse_headers(std::istringstream& stream);
         void parse_body(std::istringstream& stream);
         void setError(int code);
+        std::string intToString(int n);
+
+        void set_config(const ServerConfig& config);
+
+
+        bool is_method_allowed();
 
     private: 
     

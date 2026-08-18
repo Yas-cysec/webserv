@@ -379,7 +379,7 @@ bool Config::parseServerBlock(std::ifstream& file)
 
     while (std::getline(file, line))
     {
-        line = cleanSpaces(line); 
+        line = cleanSpaces(line);  
         if (line.empty())
             continue;
 
@@ -450,7 +450,7 @@ bool Config::parseServerBlock(std::ifstream& file)
     return false;
 }
 
-void Config::load(const std::string& fileName)
+void Config::load(const std::string& fileName) // charge le fichier..
 {
     std::ifstream file(fileName.c_str());
     std::string line;

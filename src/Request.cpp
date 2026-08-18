@@ -99,19 +99,17 @@ bool Request::Parser()
 bool Request::handle_get() // cherche le fichier et lit son contenu 
 {
     if (_path == "/")
-        _path = "/index.html";
+        _path = "/" + _config.get_index();
     if (_path.find("..") != std::string::npos)   // contient ".." ?
     {
-        _status = 403;
-        _body = "<h1>403 Forbidden</h1>";
+        setError(403);
         return false;
     }
-    std::string full_path = "www" + _path; // www/index.html
+    std::string full_path = _config.get_root() + _path; // www/index.html
     std::ifstream file(full_path.c_str());
     if (!file.is_open())
     {
-        _status = 404;
-        _body = "<h1>404 Not Found</h1>"; // page erreur simple
+        setError(404);
         return false; // fichier absen -> error 404
     }
     std::string content,line;
@@ -119,8 +117,7 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
         content += line + "\n";
     if (content.empty())               // rien lu → sûrement un dossier ou vide
     {
-        _status = 404;
-        _body = "<h1>404 Not Found</h1>";
+        setError(404);
         return false;
     }
     _status = 200;
@@ -141,25 +138,22 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
 
 bool Request::handle_post()
 {
-    if (_requestBody.size() > 1000000)   // ex: max 1 Mo
+    if (_requestBody.size() > _config.get_maxbodySize()) 
     {
-        _status = 413;
-        _body = "<h1>413 Payload Too Large</h1>";
+        setError(413);
         return false;
     }
     if (_headers.find("Content-Length") == _headers.end())
     {
-        _status = 400;
-        _body = "<h1>400 Bad Request</h1>";
+        setError(400);
         return false;
     }
-    std::string full_path = "www" + _path; // ex : www/upload.txt
+    std::string full_path = _config.get_root() + _path; // ex : www/upload.txt
 
     std::ofstream file(full_path.c_str()); // ouvre en ecriture.. 
      if (!file.is_open())
     {
-        _status = 500;
-        _body = "<h1>500 Internal Server Error</h1>";
+        setError(500);
         return false;
     }
     file << _requestBody; // ecrit les donnees recus dans le fichier
@@ -172,7 +166,7 @@ bool Request::handle_post()
 
 bool Request::handle_delete()
 {
-    std::string full_path = "www" + _path;
+    std::string full_path = _config.get_root() + _path;
     if (std::remove(full_path.c_str()) == 0) // suppresion reussi
     {
         _status = 200;
@@ -181,8 +175,7 @@ bool Request::handle_delete()
     }
     else 
     {
-        _status = 404; // fichier absent
-        _body = "<h1>404 Not Found</h1>";
+        setError(404);
         return false;
     }
     return true;
@@ -190,9 +183,38 @@ bool Request::handle_delete()
 }
 
 
+
+bool Request::is_method_allowed()
+{
+    // cherche la location qui correspond au chemin
+    for (std::size_t i = 0; i < _config.getLocations().size(); i++)
+    {
+        // le chemin commence-t-il par le path de la location ?
+        if (_path.find(_config.getLocations()[i]._path) == 0)
+        {
+            // location trouvée → la méthode est-elle dans allow_methods ?
+            for (std::size_t j = 0; j < _config.getLocations()[i]._methods.size(); j++)
+            {
+                if (_config.getLocations()[i]._methods[j] == _type)
+                    return true;   // méthode autorisée
+            }
+            return false;          // location trouvée mais méthode pas autorisée
+        }
+    }
+    return true;   // aucune location ne matche → pas de restriction → autorisé
+}
+
+
 void Request::act_request() // quel requetes c'est ? 
 
 {
+    if (!is_method_allowed())      // ← vérif AVANT tout
+    {
+        _status = 405;
+        _body = "<h1>405 Method Not Allowed</h1>";
+        return;
+    }
+
     if (_type == "GET")
         handle_get();
     else if (_type == "POST")
@@ -233,13 +255,46 @@ std::string Request::build_response() // ajoute la structure http de la reponse 
     return response.str();
 }
 
-void Request::setError(int code)
+
+
+std::string Request::intToString(int n)
 {
-    _status = code;
-    _body = "<h1>400 Bad Request</h1>";
+    std::ostringstream oss;
+    oss << n;
+    return oss.str();
 }
 
 
+
+void Request::setError(int code)
+{
+    _status = code;
+    // il y a une page custom dans la config ??
+    std::map<int, std::string>::const_iterator it = _config.getError_pages().find(code);
+    if (it != _config.getError_pages().end())
+    {
+        // charger le fichier custom
+        std::string full_path = _config.get_root() + it->second;
+        std::ifstream file(full_path.c_str());
+        if (file.is_open())
+        {
+            std::string content, line;
+            while (std::getline(file, line))
+                content += line + "\n";
+            _body = content;
+            return;
+        }
+    }
+    // pas de page custom -> body par default 
+    _body = "<h1>Error " + intToString(code) + "</h1>";
+}
+
+
+// set config : 
+void Request::set_config(const ServerConfig& config)
+{
+    _config = config; 
+}
 
 
 /*

@@ -1,6 +1,12 @@
 #include "Server.hpp"
 #include <sys/socket.h>
 
+
+Server::Server()
+{
+} 
+
+
 Server::Server(const ServerConfig& config) : _config(config)
 {
 }
@@ -18,7 +24,7 @@ struct sockaddr_in makeaddr(int port)
 
 // -------------------------------------------------
 
-bool Server::start(int port)
+bool Server::start(int port, const ServerConfig& config)
 {
     int fd = socket(AF_INET, SOCK_STREAM, 0); // creer le fd de canal de comm 
     if (fd == -1)
@@ -49,6 +55,7 @@ bool Server::start(int port)
         return false;
     }
     _serverFds.push_back(fd); // rajout de mon fd dans mon vector 
+    _fdToConfigs[fd].push_back(config); // je lie le port a sa config.. 
     std::cout << "Serveur en ecoute sur le port " << port << std::endl;
     return true;
 }
@@ -110,13 +117,23 @@ void Server::acceptClient(int serverFd, int epfd)
         return;
     }
     fcntl(clientFd, F_SETFL, O_NONBLOCK);  // ICI. NON BLOQUANT !!!
-    _clientFds.push_back(clientFd);  
+    _clientFds.push_back(clientFd);
+    _clientToServerFd[clientFd] = serverFd;   // ← retient : ce client vient de cette porte
     struct epoll_event ev;
     ev.events = EPOLLIN;
     ev.data.fd = clientFd;
     epoll_ctl(epfd, EPOLL_CTL_ADD, clientFd, &ev);
 }
 // -------------------------------------------------
+
+std::string Request::getHost()
+{
+    if (_headers.find("Host") != _headers.end())
+        return _headers["Host"];
+    return "";
+}
+
+
 
 bool Server::is_complete(const std::string& buffer) // request complete ?
 {
@@ -126,7 +143,7 @@ bool Server::is_complete(const std::string& buffer) // request complete ?
         return false;   // headers pas finis → pas complet
 
     // 2 : post avec body ? 
-     std::string content_len = "Content-Length:";
+    std::string content_len = "Content-Length:";
     size_t pos_content_length = buffer.find(content_len);
     if (pos_content_length == std::string::npos)
         return true; // pas de contente lendgt -> pas de body -> complet (get delete)
@@ -137,6 +154,22 @@ bool Server::is_complete(const std::string& buffer) // request complete ?
     size_t bodyReceived = buffer.size() - bodyStart; 
     return bodyReceived >= (size_t)contentLength;   // body complet ?
 
+}
+
+
+
+ServerConfig Server::choose_config(const std::vector<ServerConfig>& configs, Request& req)
+{
+    if (configs.size() == 1)          // une seule config → pas de choix
+        return configs[0];
+    // plusieurs → départager par server_name (Host)
+    std::string host = req.getHost();   // le Host de la requête
+    for (std::size_t i = 0; i < configs.size(); i++)
+    {
+        if (configs[i].getServerName() == host)
+             return configs[i];  // matche → on la prend
+    }
+     return configs[0];                  // aucun match → la première par défaut
 }
 
 
@@ -151,6 +184,7 @@ void Server::readClient(int clientFd, int epfd)
         close (clientFd);
         _readBuffers.erase(clientFd);   // nettoie le buffer du client parti
         _responses.erase(clientFd);  // reponse en attente 
+        _clientToServerFd.erase(clientFd); // nettoie 
         epoll_ctl(epfd, EPOLL_CTL_DEL, clientFd, NULL);  // arret de surveiller...  
         return;
     }
@@ -160,6 +194,10 @@ void Server::readClient(int clientFd, int epfd)
      if (!is_complete(_readBuffers[clientFd]))   // requête pas complète ?
         return;  // attend prochain 
 
+    int serverFd = _clientToServerFd[clientFd]; // la porte d'où vient le client
+    const std::vector<ServerConfig>& configs = _fdToConfigs[serverFd];   // les configs de cette porte
+
+
     // Parser requetes 
     Request req;
     if (!req.InitRequestParser(_readBuffers[clientFd]))   // parsing échoue ?
@@ -168,8 +206,12 @@ void Server::readClient(int clientFd, int epfd)
         }
     else
         {
-            req.act_request();                // sinon, traite normalement
-        }         
+            int serverFd = _clientToServerFd[clientFd];
+            req.set_config(choose_config(_fdToConfigs[serverFd], req));  // choisir la config 
+            req.act_request();                // traite normalement
+        }    
+
+
     // stock reponse pour client 
     _responses[clientFd] = req.build_response();
     _readBuffers[clientFd].clear();            // vide pour la prochaine requête
