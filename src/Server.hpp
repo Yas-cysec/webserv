@@ -26,7 +26,6 @@ class Server
 
     public :
         Server();
-        Server(const ServerConfig &config);
         bool start(int port, const ServerConfig& config); // debut init
         int epollHold(); // init de epoll
         void run(); // gestion du programme
@@ -36,7 +35,6 @@ class Server
         void readClient(int clientFd, int epfd);
         bool is_complete(const std::string& buffer);
         ServerConfig choose_config(const std::vector<ServerConfig>& configs, Request& req);
-        std::string getHost();
 };
 
 

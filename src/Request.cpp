@@ -297,6 +297,15 @@ void Request::set_config(const ServerConfig& config)
 }
 
 
+std::string Request::getHost()
+{
+    if (_headers.find("Host") != _headers.end())
+        return _headers["Host"];
+    return "";
+}
+
+
+
 /*
 
 

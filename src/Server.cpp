@@ -2,12 +2,8 @@
 #include <sys/socket.h>
 
 
-Server::Server()
-{
-} 
 
-
-Server::Server(const ServerConfig& config) : _config(config)
+Server::Server() :
 {
 }
 
@@ -126,12 +122,6 @@ void Server::acceptClient(int serverFd, int epfd)
 }
 // -------------------------------------------------
 
-std::string Request::getHost()
-{
-    if (_headers.find("Host") != _headers.end())
-        return _headers["Host"];
-    return "";
-}
 
 
 
@@ -195,8 +185,6 @@ void Server::readClient(int clientFd, int epfd)
         return;  // attend prochain 
 
     int serverFd = _clientToServerFd[clientFd]; // la porte d'où vient le client
-    const std::vector<ServerConfig>& configs = _fdToConfigs[serverFd];   // les configs de cette porte
-
 
     // Parser requetes 
     Request req;

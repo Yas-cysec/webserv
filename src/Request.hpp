@@ -37,6 +37,7 @@ class Request
         std::string intToString(int n);
 
         void set_config(const ServerConfig& config);
+        std::string getHost();
 
 
         bool is_method_allowed();
