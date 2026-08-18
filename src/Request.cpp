@@ -96,30 +96,111 @@ bool Request::Parser()
     return true;
 }
 
+
+// autoindex 
+
+
+
+std::string Request::list_directory(const std::string& path)
+{
+    std::string html = "<html><body><h1>Index of " + _path + "</h1><ul>";
+    DIR* dir = opendir(path.c_str());
+    if (dir == NULL)
+        return "";
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL)   // lit chaque fichier du dossier
+    {
+        std::string name = entry->d_name;
+        html += "<li><a href=\"" + name + "\">" + name + "</a></li>";
+    }
+    closedir(dir);
+
+    html += "</ul></body></html>";
+    return html;
+}
+
+
+
+const Location* Request::getMatchedLocation()
+{
+    const std::vector<Location>& locs = _config.getLocations();
+    for (std::size_t i = 0; i < locs.size(); i++)
+    {
+        if (_path.find(locs[i]._path) == 0)
+            return &locs[i];
+    }
+    return NULL;
+}
+
+bool Request::tryAutoindex(const std::string& full_path)
+{
+    const Location* loc = getMatchedLocation();
+    if (loc != NULL && loc->_autoindex)
+    {
+        std::string listing = list_directory(full_path);
+        if (!listing.empty())
+        {
+            _status = 200;
+            _body = listing;
+            return true;
+        }
+    }
+    return false;
+}
+
+// redirection : 
+
+bool Request::handleRedirect()
+{
+    const Location* loc = getMatchedLocation();
+    if (loc != NULL && !loc->_redirect.empty())
+    {
+        _status = 301;
+        _redirectUrl = loc->_redirect;
+        _body = "";
+        return true;   // il y a une redirection
+    }
+    return false;      // pas de redirection
+}
+
 bool Request::handle_get() // cherche le fichier et lit son contenu 
 {
-    if (_path == "/")
-        _path = "/" + _config.get_index();
+
+
     if (_path.find("..") != std::string::npos)   // contient ".." ?
     {
         setError(403);
         return false;
     }
+
+     if (handleRedirect())          // redirection ?
+        return true;
+    
+    if (_path == "/")
+        _path = "/" + _config.get_index();
+
     std::string full_path = _config.get_root() + _path; // www/index.html
     std::ifstream file(full_path.c_str());
+
     if (!file.is_open())
     {
+         if (tryAutoindex(full_path)) // autoindex ?
+            return true;
         setError(404);
         return false; // fichier absen -> error 404
     }
+
     std::string content,line;
     while (std::getline(file, line))
         content += line + "\n";
     if (content.empty())               // rien lu → sûrement un dossier ou vide
     {
+        if (tryAutoindex(full_path))   // autoindex ?
+            return true;
         setError(404);
         return false;
     }
+
     _status = 200;
     _body = content; // on stocke pour l'envoyer plus tard (le fichier html..)
     return true;
@@ -148,7 +229,14 @@ bool Request::handle_post()
         setError(400);
         return false;
     }
-    std::string full_path = _config.get_root() + _path; // ex : www/upload.txt
+    
+    std::string full_path;
+    const Location* loc = getMatchedLocation();
+    if (loc != NULL && !loc->_upload.empty())
+        full_path = loc->_upload + _path;        // dossier upload de la location
+    else
+        full_path = _config.get_root() + _path;  // sinon le root normal
+
 
     std::ofstream file(full_path.c_str()); // ouvre en ecriture.. 
      if (!file.is_open())
@@ -303,6 +391,8 @@ std::string Request::getHost()
         return _headers["Host"];
     return "";
 }
+
+
 
 
 

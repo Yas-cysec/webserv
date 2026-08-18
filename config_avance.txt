@@ -110,3 +110,9 @@ server_name c quoi ?
             server_name site-a.com;   
              ← ce bloc répond pour site-a.com
 
+
+
+
+on a du corriger un truc regarde dans reprise maj 
+en gros le fait que pour chaques server elle a sa propre config..
+

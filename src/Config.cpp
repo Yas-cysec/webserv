@@ -437,7 +437,6 @@ bool Config::parseServerBlock(std::ifstream& file)
             if (!parse_error_page(line, server)) 
                 return false;
         }
-
         else
         {
             std::cerr << "Erreur : regle inconnue dans server" << std::endl;

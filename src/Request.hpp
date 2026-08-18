@@ -7,6 +7,7 @@
 #include <string>
 #include <unistd.h> 
 #include "Config.hpp"
+#include <dirent.h> 
 
 
 class Request
@@ -21,6 +22,8 @@ class Request
         std::string _requestBody;
         // config 
         ServerConfig _config;
+        // redirect
+        std::string _redirectUrl;
 
     public :
         bool InitRequestParser(const std::string &buff);
@@ -40,10 +43,16 @@ class Request
         std::string getHost();
 
 
-        bool is_method_allowed();
 
-    private: 
-    
+        bool is_method_allowed();
+        // autoindex.. 
+        std::string list_directory(const std::string& path);
+        const Location* getMatchedLocation();
+        bool tryAutoindex(const std::string& full_path);
+
+        // redirection
+        bool handleRedirect();
+
 
 
 };
