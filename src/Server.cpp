@@ -3,7 +3,7 @@
 
 
 
-Server::Server() :
+Server::Server()
 {
 }
 
@@ -183,8 +183,6 @@ void Server::readClient(int clientFd, int epfd)
 
      if (!is_complete(_readBuffers[clientFd]))   // requête pas complète ?
         return;  // attend prochain 
-
-    int serverFd = _clientToServerFd[clientFd]; // la porte d'où vient le client
 
     // Parser requetes 
     Request req;
