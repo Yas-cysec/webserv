@@ -130,7 +130,7 @@ const Location* Request::getMatchedLocation()
             return &locs[i];
     }
     return NULL;
-}
+}s
 
 bool Request::tryAutoindex(const std::string& full_path)
 {
@@ -280,6 +280,8 @@ bool Request::is_method_allowed()
         // le chemin commence-t-il par le path de la location ?
         if (_path.find(_config.getLocations()[i]._path) == 0)
         {
+            if (_config.getLocations()[i]._methods.empty())   // ← pas de restriction
+                return true;
             // location trouvée → la méthode est-elle dans allow_methods ?
             for (std::size_t j = 0; j < _config.getLocations()[i]._methods.size(); j++)
             {
