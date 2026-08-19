@@ -280,6 +280,9 @@ bool Request::is_method_allowed()
         // le chemin commence-t-il par le path de la location ?
         if (_path.find(_config.getLocations()[i]._path) == 0)
         {
+            std::cerr << "MATCH location=[" << _config.getLocations()[i]._path 
+              << "] methods.size=" << _config.getLocations()[i]._methods.size() << std::endl;
+            // ... le reste
             if (_config.getLocations()[i]._methods.empty())   // ← pas de restriction
                 return true;
             // location trouvée → la méthode est-elle dans allow_methods ?
@@ -298,6 +301,7 @@ bool Request::is_method_allowed()
 void Request::act_request() // quel requetes c'est ? 
 
 {
+    std::cerr << "DEBUG type=[" << _type << "] path=[" << _path << "]" << std::endl;
     if (!is_method_allowed())      // ← vérif AVANT tout
     {
         _status = 405;
