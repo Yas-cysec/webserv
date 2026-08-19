@@ -331,6 +331,11 @@ std::string Request::build_response() // ajoute la structure http de la reponse 
         response << "HTTP/1.1 200 OK\r\n";
     else if (_status == 201)
         response << "HTTP/1.1 201 Created\r\n";
+    else if (_status == 301)                          
+    {
+        response << "HTTP/1.1 301 Moved Permanently\r\n";
+        response << "Location: " << _redirectUrl << "\r\n";   // ← le header Location
+    }
     else if (_status == 400)
         response << "HTTP/1.1 400 Bad Request\r\n";
     else if (_status == 403)
