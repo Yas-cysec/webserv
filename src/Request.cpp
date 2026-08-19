@@ -130,7 +130,7 @@ const Location* Request::getMatchedLocation()
             return &locs[i];
     }
     return NULL;
-}s
+}
 
 bool Request::tryAutoindex(const std::string& full_path)
 {
@@ -301,6 +301,7 @@ bool Request::is_method_allowed()
 void Request::act_request() // quel requetes c'est ? 
 
 {
+    std::cerr << "TYPE=[" << _type << "]" << std::endl; 
     std::cerr << "DEBUG type=[" << _type << "] path=[" << _path << "]" << std::endl;
     if (!is_method_allowed())      // ← vérif AVANT tout
     {
