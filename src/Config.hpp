@@ -18,6 +18,8 @@ class Location
         std::string _root;
         std::string _index;
         std::string _upload;
+        std::string _cgiExtension; // .py 
+        std::string _cgiInterpreter; // usr/bin/python3
 };
 
 
@@ -82,10 +84,17 @@ private:
     bool parseServerBlock(std::ifstream& file);
     std::string cleanSpaces(const std::string& s);
     std::string extract_value(const std::string &line, const std::string &word);
+    
+    // cgi 
+
+    bool parse_cgi(const std::string &line, Location &loc);
 
 public:
     void load(const std::string& fileName);
     const std::vector<ServerConfig>& getServers() const;
+
+
+
 };
 
 #endif

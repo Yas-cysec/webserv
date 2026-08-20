@@ -165,8 +165,7 @@ bool Request::handleRedirect()
 
 bool Request::handle_get() // cherche le fichier et lit son contenu 
 {
-
-
+   
     if (_path.find("..") != std::string::npos)   // contient ".." ?
     {
         setError(403);
@@ -178,6 +177,21 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
     
     if (_path == "/")
         _path = "/" + _config.get_index();
+
+        // cgi
+    const Location* loc = getMatchedLocation();
+    if (loc != NULL && !loc->_cgiExtension.empty())
+    {
+        // le chemin finit-il par l'extension CGI (.py) ?
+        if (_path.find(loc->_cgiExtension) != std::string::npos)
+        {
+            std::string scriptPath = _config.get_root() + _path;
+            Cgi cgi(loc->_cgiInterpreter, scriptPath);
+            _body = cgi.execute();
+            _status = 200;
+            return true;
+        }
+    }
 
     std::string full_path = _config.get_root() + _path; // www/index.html
     std::ifstream file(full_path.c_str());
@@ -280,9 +294,6 @@ bool Request::is_method_allowed()
         // le chemin commence-t-il par le path de la location ?
         if (_path.find(_config.getLocations()[i]._path) == 0)
         {
-            std::cerr << "MATCH location=[" << _config.getLocations()[i]._path 
-              << "] methods.size=" << _config.getLocations()[i]._methods.size() << std::endl;
-            // ... le reste
             if (_config.getLocations()[i]._methods.empty())   // ← pas de restriction
                 return true;
             // location trouvée → la méthode est-elle dans allow_methods ?
@@ -301,8 +312,6 @@ bool Request::is_method_allowed()
 void Request::act_request() // quel requetes c'est ? 
 
 {
-    std::cerr << "TYPE=[" << _type << "]" << std::endl; 
-    std::cerr << "DEBUG type=[" << _type << "] path=[" << _path << "]" << std::endl;
     if (!is_method_allowed())      // ← vérif AVANT tout
     {
         _status = 405;

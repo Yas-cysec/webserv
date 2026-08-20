@@ -1,0 +1,70 @@
+on debute la cgi.. c quoi pourquoi ? 
+
+
+il ságit de faire exec un programme externe pour generer la reponse
+
+en gros : 
+
+si ta un site qui veux afficher l'heure en temps reel. ton serveur peux pas gerer ca
+il a besoin dún progrmame php genre : 
+
+client demande /heure.php
+    -> le serveur : "je sais pas faire je vais demander a php
+    - serveur : lance le programme php sur heure.php
+    - php : calcule et fabrique la page "il est midi"
+    - php renvoie cette page a ton serveur
+    - ton serveur la renvoie au client.. 
+
+
+de base nous on liser le fichier et on envoyer le contenu
+page.html contient "<h1>Bonjour</h1>"
+→ tu lis → tu renvoies "<h1>Bonjour</h1>"
+→ toujours pareil, à chaque visite
+
+mais avec script.. 
+
+Tu exécutes le fichier (c'est un programme), 
+et tu renvoies ce qu'il produit. Le résultat peut changer.
+
+
+du coup faudra use : 
+    fork (car je lance un autre programme a partir du miens (serveur))
+    exec (qui remplacera le code enfant par celui du php)
+    pipe (lecture de la sortie html) 
+        enfaite php est programme pour ecrire html en sortie standart.. 
+        tout est en print ou echo (c ca un script cgi.. ) et on redirigie ca
+        au lieu que ce soit sur lécran bah c dans la pipe directement
+
+
+donc le plan : 
+
+on dois gerer post et get (parsing + connection ). 
+
+plan : 
+
+JOUR 1
+- écrire un script de test (python)
+- parser la directive cgi dans la config
+- lancer le script (fork/exec/pipe) et récupérer sa sortie
+
+JOUR 2
+- connecter le CGI dans handle_get (détecter l'extension)
+- passer les variables d'environnement au script
+- gérer le POST (envoyer le body au script)
+
+JOUR 3
+- gérer les erreurs (script absent, plante, timeout)
+- intégrer le pipe dans epoll (non-bloquant)
+- vérifier / tester (GET, POST, erreurs)
+
+
+debutons.. 
+
+script de test :  exemple.. 
+#!/usr/bin/python3 // le type de language.. 
+print("Content-Type: text/html") // 
+print("")
+print("<html><body>")
+print("<h1>Mon CGI marche !</h1>")
+print("</body></html>")
+

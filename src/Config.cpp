@@ -258,6 +258,90 @@ bool Config::parse_autoindex(const std::string& line, Location& loc)
     return true;
 }
 
+//---------------------------------------------------
+
+
+
+
+//---------------------------------------------------
+// server name 
+
+void ServerConfig::setServerName(const std::string& name) 
+{ 
+    _serverName = name; 
+}
+const std::string& ServerConfig::getServerName() const 
+{ 
+    return _serverName; 
+}
+
+
+//---------------------------------------------------
+
+// parse error pages..
+
+void ServerConfig::addError_page(int code, const std::string& path)
+{
+    _errorPages[code] = path;
+}
+
+const std::map<int, std::string>& ServerConfig::getError_pages() const
+{
+    return _errorPages;
+}
+
+bool Config::parse_error_page(const std::string& line, ServerConfig& server)
+{
+    std::string kw = "error_page";
+    std::size_t start = line.find(kw) + kw.length();
+    std::size_t end = line.find(";", start);
+
+    if (end == std::string::npos)
+    {
+        std::cerr << "Erreur : ; manquant apres error_page" << std::endl;
+        return false;
+    }
+
+    std::string rest = line.substr(start, end - start);   // " 404 /erreurs/404.html"
+    std::istringstream iss(rest);
+    int code;
+    std::string path;
+    iss >> code >> path;          // extrait le nombre PUIS le chemin
+
+    server.addError_page(code, path);
+    return true;
+}
+
+
+
+
+
+//---------------------------------------------------
+// cgi 
+//---------------------------------------------------
+
+bool Config::parse_cgi(const std::string& line, Location& loc)
+{
+    std::string kw = "cgi";
+    std::size_t start = line.find(kw) + kw.length();
+    std::size_t end = line.find(";", start);
+
+    if (end == std::string::npos)
+    {
+        std::cerr << "Erreur : ; manquant apres cgi" << std::endl;
+        return false;
+    }
+    std::string rest = line.substr(start, end - start);   // " .py /usr/bin/python3"
+        std::istringstream iss(rest);
+    iss >> loc._cgiExtension >> loc._cgiInterpreter;      // les 2 mots
+    return true;
+}
+
+
+//---------------------------------------------------
+// parse 
+//---------------------------------------------------
+
 
 bool Config::parseLocation(const std::string& firstLine, std::ifstream& file, ServerConfig& server)
 {
@@ -310,6 +394,11 @@ bool Config::parseLocation(const std::string& firstLine, std::ifstream& file, Se
         {
             loc._upload = extract_value(line, "upload");
         }
+        else if (line.find("cgi") != std::string::npos)
+        {
+            if (!parse_cgi(line, loc))
+                return false;
+        }
         else
         {
             std::cerr << "Erreur : regle inconnue dans location" << std::endl;
@@ -320,56 +409,6 @@ bool Config::parseLocation(const std::string& firstLine, std::ifstream& file, Se
     return false;
 }
 
-
-//---------------------------------------------------
-
-
-// server name 
-
-void ServerConfig::setServerName(const std::string& name) 
-{ 
-    _serverName = name; 
-}
-const std::string& ServerConfig::getServerName() const 
-{ 
-    return _serverName; 
-}
-
-// parse error pages..
-
-void ServerConfig::addError_page(int code, const std::string& path)
-{
-    _errorPages[code] = path;
-}
-
-const std::map<int, std::string>& ServerConfig::getError_pages() const
-{
-    return _errorPages;
-}
-
-bool Config::parse_error_page(const std::string& line, ServerConfig& server)
-{
-    std::string kw = "error_page";
-    std::size_t start = line.find(kw) + kw.length();
-    std::size_t end = line.find(";", start);
-
-    if (end == std::string::npos)
-    {
-        std::cerr << "Erreur : ; manquant apres error_page" << std::endl;
-        return false;
-    }
-
-    std::string rest = line.substr(start, end - start);   // " 404 /erreurs/404.html"
-    std::istringstream iss(rest);
-    int code;
-    std::string path;
-    iss >> code >> path;          // extrait le nombre PUIS le chemin
-
-    server.addError_page(code, path);
-    return true;
-}
-
-// parse 
 
 bool Config::parseServerBlock(std::ifstream& file)
 {

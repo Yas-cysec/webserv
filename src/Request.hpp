@@ -8,6 +8,7 @@
 #include <unistd.h> 
 #include "Config.hpp"
 #include <dirent.h> 
+#include "Cgi.hpp"
 
 
 class Request
