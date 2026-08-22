@@ -4,16 +4,29 @@
 #include <iostream>
 #include <string>
 
+#include "Request.hpp"
+
 class Cgi
 {
     private:
             std::string _interpreter; // if py ou php
             std::string _scriptPath;
             std::string _contentHtml;
+            std::string _methods;
+            std::string _queryString;
+            std::string _contentLen;
+            std::string _contentType;
+            std::string _pathInfo;
+            std::string _body;
+            
 
     public: 
-        Cgi(const std::string &interpreter, const std::string &scriptPath);
+        Cgi(const std::string& interpreter, const std::string& scriptPath, 
+                const std::string &method, const std::string &queryString,
+                const std::string &contentLen, const std::string &contentType,
+                const std::string &pathInfo, const std::string &body);
         std::string execute();
+        void env_var(std::vector<std::string > &env);
 };
 
 // on fais 3 choses : 

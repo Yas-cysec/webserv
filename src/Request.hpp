@@ -26,6 +26,7 @@ class Request
         // redirect
         std::string _redirectUrl;
 
+
     public :
         bool InitRequestParser(const std::string &buff);
         bool Parser();
@@ -45,6 +46,8 @@ class Request
 
 
 
+
+
         bool is_method_allowed();
         // autoindex.. 
         std::string list_directory(const std::string& path);
@@ -54,6 +57,7 @@ class Request
         // redirection
         bool handleRedirect();
 
+        bool tryCgi();
 
 
 };

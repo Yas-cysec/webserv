@@ -163,6 +163,39 @@ bool Request::handleRedirect()
     return false;      // pas de redirection
 }
 
+
+
+
+bool Request::tryCgi()
+{
+    const Location* loc = getMatchedLocation();
+    if (loc == NULL || loc->_cgiExtension.empty())
+        return false;   // pas de CGI ici
+
+    if (_path.find(loc->_cgiExtension) == std::string::npos)
+        return false;   // pas un script
+
+    // découper le query string
+    std::string queryString = "";
+    std::size_t pos = _path.find("?");
+    if (pos != std::string::npos)
+    {
+        queryString = _path.substr(pos + 1);
+        _path = _path.substr(0, pos);
+    }
+
+    std::string scriptPath = _config.get_root() + _path;
+    Cgi cgi(loc->_cgiInterpreter, scriptPath, _type, queryString,
+            _headers["Content-Length"], _headers["Content-Type"], _path,
+            _requestBody);
+    _body = cgi.execute();
+    _status = 200;
+    return true;   // CGI géré
+}
+
+
+
+
 bool Request::handle_get() // cherche le fichier et lit son contenu 
 {
    
@@ -178,20 +211,19 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
     if (_path == "/")
         _path = "/" + _config.get_index();
 
-        // cgi
-    const Location* loc = getMatchedLocation();
-    if (loc != NULL && !loc->_cgiExtension.empty())
+
+    // url parse pour cgi.. 
+    std::string queryString = "";
+    std::size_t pos = _path.find("?");
+    if (pos != std::string::npos) // y'a un ? 
     {
-        // le chemin finit-il par l'extension CGI (.py) ?
-        if (_path.find(loc->_cgiExtension) != std::string::npos)
-        {
-            std::string scriptPath = _config.get_root() + _path;
-            Cgi cgi(loc->_cgiInterpreter, scriptPath);
-            _body = cgi.execute();
-            _status = 200;
-            return true;
-        }
+        queryString = _path.substr(pos + 1);
+        _path = _path.substr(0, pos); 
     }
+
+        // cgi
+    if (tryCgi())
+        return true;
 
     std::string full_path = _config.get_root() + _path; // www/index.html
     std::ifstream file(full_path.c_str());
@@ -243,7 +275,10 @@ bool Request::handle_post()
         setError(400);
         return false;
     }
-    
+
+    if (tryCgi())
+        return true;
+
     std::string full_path;
     const Location* loc = getMatchedLocation();
     if (loc != NULL && !loc->_upload.empty())
