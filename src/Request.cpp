@@ -169,9 +169,6 @@ bool Request::handleRedirect()
 bool Request::tryCgi()
 {
     const Location* loc = getMatchedLocation();
-    std::cerr << "CGI: loc=" << (loc ? loc->_path : "NULL")
-              << " ext=" << (loc ? loc->_cgiExtension : "?")
-              << " path=" << _path << std::endl;
     if (loc == NULL || loc->_cgiExtension.empty())
         return false;   // pas de CGI ici
 
