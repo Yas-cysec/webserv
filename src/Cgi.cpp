@@ -29,6 +29,26 @@ void Cgi::env_var(std::vector<std::string > &env)
 }
 
 
+bool Cgi::waitWithTimeout(pid_t pid)
+{
+    time_t start = time(NULL);
+    int status;
+    while (true)
+    {
+        pid_t result = waitpid(pid, &status, WNOHANG);// ne bloque pas
+        if (result != 0)
+            break;   // le script a fini
+        if (time(NULL) - start > 5)   // 5 secondes écoulées ?
+        {
+            kill(pid, SIGKILL);        // tue le script
+            waitpid(pid, &status, 0);  // nettoie le processus zombie
+            return "";                 // timeout → erreur
+        }
+        usleep(1000); // pause
+    }
+}
+
+
 std::string Cgi::execute()
 {
     int inpipefd[2]; // lire le contenu post pour enfant
@@ -79,7 +99,8 @@ std::string Cgi::execute()
             _contentHtml += buffer;
         }
         close (outpipefd[0]);
-        waitpid(pid, NULL, 0);
+        if (!waitWithTimeout(pid))
+            return "";
     }
     return (_contentHtml);
 }

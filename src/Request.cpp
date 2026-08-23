@@ -168,6 +168,7 @@ bool Request::handleRedirect()
 
 bool Request::tryCgi()
 {
+
     const Location* loc = getMatchedLocation();
     if (loc == NULL || loc->_cgiExtension.empty())
         return false;   // pas de CGI ici
@@ -185,10 +186,22 @@ bool Request::tryCgi()
     }
 
     std::string scriptPath = _config.get_root() + _path;
+    std::ifstream test(scriptPath.c_str());
+    if (!test.is_open())
+    {
+        setError(404);   // script absent
+        return true;     // géré (en erreur)
+    }
+    test.close();
     Cgi cgi(loc->_cgiInterpreter, scriptPath, _type, queryString,
             _headers["Content-Length"], _headers["Content-Type"], _path,
             _requestBody);
     _body = cgi.execute();
+    if (_body.empty())
+    {
+        setError(500);
+        return true;
+    }
     _status = 200;
     return true;   // CGI géré
 }

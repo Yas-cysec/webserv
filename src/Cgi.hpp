@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <string>
+#include <ctime>
+#include <csignal>
 
 #include "Request.hpp"
 
@@ -26,6 +28,7 @@ class Cgi
                 const std::string &contentLen, const std::string &contentType,
                 const std::string &pathInfo, const std::string &body);
         std::string execute();
+        bool waitWithTimeout(pid_t pid);
         void env_var(std::vector<std::string > &env);
 };
 
