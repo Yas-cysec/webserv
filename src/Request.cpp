@@ -72,10 +72,7 @@ void Request::parse_body(std::istringstream& stream)
 bool Request::InitRequestParser(const std::string& buff)
 {
     if (buff.empty())
-    {
-        // std.cerr
         return false;
-    }
     std::istringstream stream(buff); // le creer en flux.
 
     parse_request_line(stream); // 1 ere ligne parser

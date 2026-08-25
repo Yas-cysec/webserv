@@ -1,7 +1,7 @@
 #include "Server.hpp"
 #include <sys/socket.h>
 
-
+extern volatile sig_atomic_t g_running; // gestion du controle C 
 
 Server::Server()
 {
@@ -391,7 +391,7 @@ void Server::run() // fonction principal qui lance l'ecoute
         return ;
     struct epoll_event events[64];
 
-    while (true) // debut boucle infini
+    while (g_running) // debut boucle infini
     {
         int n = epoll_wait(epfd, events, 64, 1000); 
         int i = 0;
@@ -410,7 +410,7 @@ void Server::run() // fonction principal qui lance l'ecoute
         }
         checkCgiTimeouts(epfd);
     }
-
+    close (epfd);
 }
 
 void Server::sendResponse(int clientFd, int epfd)

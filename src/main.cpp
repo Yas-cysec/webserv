@@ -2,6 +2,18 @@
 #include "Server.hpp"
 #include <iostream>
 
+
+
+#include <csignal>
+
+volatile sig_atomic_t g_running = 1;
+
+void handleSignal(int sig)
+{
+    (void)sig;
+    g_running = 0;   // arrête la boucle
+}
+
 int main(int argc, char** argv)
 {
     if (argc != 2)
@@ -9,6 +21,7 @@ int main(int argc, char** argv)
         std::cerr << "Usage : ./webserv config.conf" << std::endl;
         return 1;
     }
+    signal(SIGINT, handleSignal); 
 
     Config config;
     config.load(argv[1]);
