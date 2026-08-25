@@ -417,10 +417,19 @@ void Server::sendResponse(int clientFd, int epfd)
 {
     std::string &response = _responses[clientFd];
     int sent = send(clientFd, response.c_str(), response.size(), 0);
-    if (sent <= 0) // erreur
-        return; //reesaie prochain tour..
-    response.erase(0, sent);   // enlève ce qui a deja été envoyé
-    if (response.empty()) // tout envoyer ? 
+
+    if (sent <= 0)   // erreur (-1) ou connexion fermée (0) → RETIRER le client
+    {
+        close(clientFd);
+        _responses.erase(clientFd);
+        _readBuffers.erase(clientFd);
+        _clientToServerFd.erase(clientFd);
+        epoll_ctl(epfd, EPOLL_CTL_DEL, clientFd, NULL);
+        return;
+    }
+
+    response.erase(0, sent);   // enlève ce qui a été envoyé
+    if (response.empty())      // tout envoyé ?
     {
         _responses.erase(clientFd);
         epoll_ctl(epfd, EPOLL_CTL_DEL, clientFd, NULL);
