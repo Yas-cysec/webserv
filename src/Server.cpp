@@ -309,13 +309,27 @@ void Server::readCgiOutput(int pipeFd, int epfd)
     // bytes <= 0 : le script a fini (pipe fermé)
     int clientFd = proc.clientFd;
 
+    int status;
+    waitpid(proc.pid, &status, 0);
     // construire la réponse HTTP avec la sortie du script
     std::ostringstream resp;
-    resp << "HTTP/1.1 200 OK\r\n";
-    resp << "Content-Length: " << proc.output.size() << "\r\n";
-    resp << "Content-Type: text/html\r\n";
-    resp << "\r\n";
-    resp << proc.output;
+    if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+    {
+        // script planté → 500
+        std::string body = "<h1>Error 500</h1>";
+        resp << "HTTP/1.1 500 Internal Server Error\r\n";
+        resp << "Content-Length: " << body.size() << "\r\n";
+        resp << "Content-Type: text/html\r\n\r\n";
+        resp << body;
+    }
+    else 
+    {   
+        resp << "HTTP/1.1 200 OK\r\n";
+        resp << "Content-Length: " << proc.output.size() << "\r\n";
+        resp << "Content-Type: text/html\r\n";
+        resp << "\r\n";
+        resp << proc.output;
+    }
     _responses[clientFd] = resp.str();
 
     // nettoyer le CGI
