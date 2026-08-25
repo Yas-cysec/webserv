@@ -13,6 +13,9 @@
 #include <fcntl.h>
 #include "Request.hpp"
 #include <cstdlib>
+#include <sys/wait.h>
+#include <csignal>
+#include <ctime>
 
 class Server
 {
@@ -23,6 +26,8 @@ class Server
         std::map<int, std::string> _responses;   // clientFd → sa réponse à envoyer
         std::map<int, std::string> _readBuffers;   // fd → ce qu'on a accumulé
         std::map<int, int> _clientToServerFd;   // clientFd → la porte d'où il vient
+        std::map<int, CgiProcess> _cgiProcesses;
+
 
     public :
         Server();
@@ -35,6 +40,12 @@ class Server
         void readClient(int clientFd, int epfd);
         bool is_complete(const std::string& buffer);
         ServerConfig choose_config(const std::vector<ServerConfig>& configs, Request& req);
+
+        // cgi
+        bool isCgiPipe(int fd);
+        void readCgiOutput(int fd, int epfd);
+        void startCgi(Request& req, int clientFd, int epfd);
+        void checkCgiTimeouts(int epfd)
 };
 
 

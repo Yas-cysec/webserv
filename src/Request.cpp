@@ -168,20 +168,16 @@ bool Request::handleRedirect()
 
 bool Request::tryCgi()
 {
-
     const Location* loc = getMatchedLocation();
     if (loc == NULL || loc->_cgiExtension.empty())
-        return false;   // pas de CGI ici
-
+        return false;
     if (_path.find(loc->_cgiExtension) == std::string::npos)
-        return false;   // pas un script
+        return false;
 
-    // découper le query string
-    std::string queryString = "";
     std::size_t pos = _path.find("?");
     if (pos != std::string::npos)
     {
-        queryString = _path.substr(pos + 1);
+        _cgiQuery = _path.substr(pos + 1);
         _path = _path.substr(0, pos);
     }
 
@@ -189,23 +185,16 @@ bool Request::tryCgi()
     std::ifstream test(scriptPath.c_str());
     if (!test.is_open())
     {
-        setError(404);   // script absent
-        return true;     // géré (en erreur)
+        setError(404);
+        return true;      // géré (erreur) — pas un CGI à lancer
     }
     test.close();
-    Cgi cgi(loc->_cgiInterpreter, scriptPath, _type, queryString,
-            _headers["Content-Length"], _headers["Content-Type"], _path,
-            _requestBody);
-    _body = cgi.execute();
-    if (_body.empty())
-    {
-        setError(500);
-        return true;
-    }
-    _status = 200;
-    return true;   // CGI géré
-}
 
+    _isCgi = true;              // ← drapeau : Server doit lancer le CGI
+    _cgiInterpreter = loc->_cgiInterpreter;
+    _cgiScriptPath = scriptPath;
+    return true;
+}
 
 
 

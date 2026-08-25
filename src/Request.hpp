@@ -25,6 +25,12 @@ class Request
         ServerConfig _config;
         // redirect
         std::string _redirectUrl;
+        //cgi 
+        bool _isCgi;
+        std::string _cgiInterpreter; 
+        std::string _cgiScriptPath;
+        std::string _cgiQuery;
+
 
 
     public :
@@ -57,7 +63,16 @@ class Request
         // redirection
         bool handleRedirect();
 
+        // cgi
+        Request() : _isCgi(false) {}
         bool tryCgi();
+        bool isCgi() const { return _isCgi; }
+        std::string getCgiInterpreter() const { return _cgiInterpreter; }
+        std::string getCgiScriptPath() const { return _cgiScriptPath; }
+        std::string getCgiQuery() const { return _cgiQuery; }
+        std::string getMethod() const { return _type; }
+        std::string getBody() const { return _requestBody; }
+        std::string getHeader(const std::string& k) { return _headers[k]; }
 
 
 };

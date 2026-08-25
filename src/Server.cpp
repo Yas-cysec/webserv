@@ -167,6 +167,7 @@ ServerConfig Server::choose_config(const std::vector<ServerConfig>& configs, Req
 
 void Server::readClient(int clientFd, int epfd)
 {
+
     char buffer[4096]; // stock  la requete car ecriture
     int bytes = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
     if (bytes <= 0) // 0 = client parti,  -1 = erreur
@@ -195,8 +196,16 @@ void Server::readClient(int clientFd, int epfd)
             int serverFd = _clientToServerFd[clientFd];
             req.set_config(choose_config(_fdToConfigs[serverFd], req));  // choisir la config 
             req.act_request();                // traite normalement
-        }    
+        }
 
+    // NEW : si c un cgi on lance (non bloquant au lieu de repondre direct)
+    if (req.isCgi())
+    {
+        startCgi(req, clientFd, epfd);
+        _readBuffers[clientFd].clear();
+        return;   // on ne répond pas maintenant, le CGI répondra plus tard
+    }
+    // sinon reponse nomrla comme avant 
 
     // stock reponse pour client 
     _responses[clientFd] = req.build_response();
@@ -208,6 +217,155 @@ void Server::readClient(int clientFd, int epfd)
     ev.data.fd = clientFd;
     epoll_ctl(epfd, EPOLL_CTL_MOD, clientFd, &ev);
 }
+
+ // -------cgi--------------------
+
+
+void Server::startCgi(Request& req, int clientFd, int epfd)
+{
+    int inpipe[2];
+    int outpipe[2];
+    if (pipe(inpipe) == -1 || pipe(outpipe) == -1)
+        return;
+
+    // préparer args + env AVANT le fork
+    std::string interp = req.getCgiInterpreter();
+    std::string script = req.getCgiScriptPath();
+
+    char* args[] = {(char*)interp.c_str(), (char*)script.c_str(), NULL};
+
+    std::vector<std::string> env;
+    env.push_back("REQUEST_METHOD=" + req.getMethod());
+    env.push_back("QUERY_STRING=" + req.getCgiQuery());
+    env.push_back("CONTENT_LENGTH=" + req.getHeader("Content-Length"));
+    env.push_back("CONTENT_TYPE=" + req.getHeader("Content-Type"));
+    std::vector<char*> envp;
+    for (std::size_t i = 0; i < env.size(); i++)
+        envp.push_back((char*)env[i].c_str());
+    envp.push_back(NULL);
+
+    pid_t pid = fork();
+    if (pid == -1)
+        return;
+
+    if (pid == 0)   // enfant
+    {
+        dup2(inpipe[0], STDIN_FILENO);
+        dup2(outpipe[1], STDOUT_FILENO);
+        close(inpipe[0]); close(inpipe[1]);
+        close(outpipe[0]); close(outpipe[1]);
+        execve(interp.c_str(), args, &envp[0]);
+        exit(1);
+    }
+
+    // parent
+    close(inpipe[0]);
+    close(outpipe[1]);
+
+    // écrire le body (POST) puis fermer
+    std::string body = req.getBody();
+    if (!body.empty())
+        write(inpipe[1], body.c_str(), body.size());
+    close(inpipe[1]);
+
+    // pipe sortie en NON-BLOQUANT
+    fcntl(outpipe[0], F_SETFL, O_NONBLOCK);
+
+    // ajouter le pipe sortie à epoll
+    struct epoll_event ev;
+    ev.events = EPOLLIN;
+    ev.data.fd = outpipe[0];
+    epoll_ctl(epfd, EPOLL_CTL_ADD, outpipe[0], &ev);
+
+    // enregistrer le CGI en cours
+    CgiProcess proc;
+    proc.clientFd = clientFd;
+    proc.pid = pid;
+    proc.startTime = time(NULL);
+    proc.output = "";
+    _cgiProcesses[outpipe[0]] = proc;
+}
+
+
+bool Server::isCgiPipe(int fd)
+{
+    return _cgiProcesses.find(fd) != _cgiProcesses.end();
+}
+
+void Server::readCgiOutput(int pipeFd, int epfd)
+{
+    CgiProcess& proc = _cgiProcesses[pipeFd];
+
+    char buffer[4096];
+    int bytes = read(pipeFd, buffer, sizeof(buffer) - 1);
+
+    if (bytes > 0)
+    {
+        buffer[bytes] = '\0';
+        proc.output += buffer;      // accumule, on n'a pas fini
+        return;
+    }
+
+    // bytes <= 0 : le script a fini (pipe fermé)
+    int clientFd = proc.clientFd;
+
+    // construire la réponse HTTP avec la sortie du script
+    std::ostringstream resp;
+    resp << "HTTP/1.1 200 OK\r\n";
+    resp << "Content-Length: " << proc.output.size() << "\r\n";
+    resp << "Content-Type: text/html\r\n";
+    resp << "\r\n";
+    resp << proc.output;
+    _responses[clientFd] = resp.str();
+
+    // nettoyer le CGI
+    waitpid(proc.pid, NULL, 0);
+    epoll_ctl(epfd, EPOLL_CTL_DEL, pipeFd, NULL);
+    close(pipeFd);
+    _cgiProcesses.erase(pipeFd);
+
+    // basculer le client en EPOLLOUT pour lui envoyer la réponse
+    struct epoll_event ev;
+    ev.events = EPOLLOUT;
+    ev.data.fd = clientFd;
+    epoll_ctl(epfd, EPOLL_CTL_MOD, clientFd, &ev);
+}
+
+void Server::checkCgiTimeouts(int epfd)
+{
+    std::map<int, CgiProcess>::iterator it = _cgiProcesses.begin();
+    while (it != _cgiProcesses.end())
+    {
+        if (time(NULL) - it->second.startTime > 5)   // 5s dépassées
+        {
+            int pipeFd = it->first;
+            int clientFd = it->second.clientFd;
+
+            kill(it->second.pid, SIGKILL);           // tue le script
+            waitpid(it->second.pid, NULL, 0);
+
+            // réponse 504 (timeout)
+            std::string resp = "HTTP/1.1 504 Gateway Timeout\r\nContent-Length: 0\r\n\r\n";
+            _responses[clientFd] = resp;
+
+            epoll_ctl(epfd, EPOLL_CTL_DEL, pipeFd, NULL);
+            close(pipeFd);
+
+            struct epoll_event ev;
+            ev.events = EPOLLOUT;
+            ev.data.fd = clientFd;
+            epoll_ctl(epfd, EPOLL_CTL_MOD, clientFd, &ev);
+
+            std::map<int, CgiProcess>::iterator toErase = it;
+            ++it;
+            _cgiProcesses.erase(toErase);   // retire le CGI tué
+        }
+        else
+            ++it;
+    }
+}
+
+
 
 
 // -------------------------------------------------
@@ -221,23 +379,22 @@ void Server::run() // fonction principal qui lance l'ecoute
 
     while (true) // debut boucle infini
     {
-        int n = epoll_wait(epfd, events, 64, -1); // recupere le nb
+        int n = epoll_wait(epfd, events, 64, 1000); 
         int i = 0;
         while (i < n) // parcours tout les fd
         {
             int fd = events[i].data.fd; // recupere le fd
-            if (isServerFd(fd)) // si le fd est un port normal connu
-                {
+            if (_cgiProcesses.find(fd) != _cgiProcesses.end())   // pipe CGI ?
+                readCgiOutput(fd, epfd);
+            else if (isServerFd(fd)) // si le fd est un port normal connu
                     acceptClient(fd, epfd); // accept la co (car c un futur client)
-                }
             else if ((events[i].events & EPOLLOUT))// c un client deja connu
-                {
                     sendResponse(fd, epfd);
-                }
             else 
                 readClient(fd, epfd);
             i++;
         }
+        checkCgiTimeouts(epfd);
     }
 
 }

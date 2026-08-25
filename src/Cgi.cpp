@@ -42,11 +42,22 @@ bool Cgi::waitWithTimeout(pid_t pid)
         {
             kill(pid, SIGKILL);        // tue le script
             waitpid(pid, &status, 0);  // nettoie le processus zombie
-            return "";                 // timeout → erreur
+            return false;                 // timeout → erreur
         }
         usleep(1000); // pause
     }
+    return true;
 }
+
+
+
+
+
+
+
+
+
+
 
 
 std::string Cgi::execute()
@@ -123,4 +134,13 @@ dans enfant on config juste
     outpipe lui on lui dis que son ecriture est en sortie (car dois return le script)
     et dans le parent on lis a partir de output[0]... 
 
+
+
+
+il y a un pb avec timeout et les loop.. 
+
+le serveur lis avec read la sortie du sciot normalememnt quand read recois fini 
+mais si y'a une boucle dans le script sans jamais finir le serv reste figer.. 
+faut use epoll 
+on rajoute simplement une obucle qui surveille 
 */

@@ -8,6 +8,15 @@
 
 #include "Request.hpp"
 
+
+struct CgiProcess
+{
+    int clientFd;          // à qui renvoyer la réponse
+    pid_t pid;             // le script (pour le tuer)
+    time_t startTime;      // quand il a démarré (timeout)
+    std::string output;    // ce qu'on a lu jusqu'ici
+};
+
 class Cgi
 {
     private:
