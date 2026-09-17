@@ -229,65 +229,101 @@ void Server::startCgi(Request& req, int clientFd, int epfd)
 {
     int inpipe[2];
     int outpipe[2];
-    if (pipe(inpipe) == -1 || pipe(outpipe) == -1)
+
+    if (pipe(inpipe) == -1)
         return;
+
+    if (pipe(outpipe) == -1)
+    {
+        close(inpipe[0]);
+        close(inpipe[1]);
+        return;
+    }
 
     // préparer args + env AVANT le fork
     std::string interp = req.getCgiInterpreter();
     std::string script = req.getCgiScriptPath();
 
-    char* args[] = {(char*)interp.c_str(), (char*)script.c_str(), NULL};
+    char* args[] = {
+        (char*)interp.c_str(),
+        (char*)script.c_str(),
+        NULL
+    };
 
     std::vector<std::string> env;
     env.push_back("REQUEST_METHOD=" + req.getMethod());
     env.push_back("QUERY_STRING=" + req.getCgiQuery());
     env.push_back("CONTENT_LENGTH=" + req.getHeader("Content-Length"));
     env.push_back("CONTENT_TYPE=" + req.getHeader("Content-Type"));
+
     std::vector<char*> envp;
     for (std::size_t i = 0; i < env.size(); i++)
         envp.push_back((char*)env[i].c_str());
     envp.push_back(NULL);
 
     pid_t pid = fork();
-    if (pid == -1)
-        return;
 
-    if (pid == 0)   // enfant
+    if (pid == -1)
+    {
+        close(inpipe[0]);
+        close(inpipe[1]);
+        close(outpipe[0]);
+        close(outpipe[1]);
+        return;
+    }
+
+    if (pid == 0) // enfant
     {
         dup2(inpipe[0], STDIN_FILENO);
         dup2(outpipe[1], STDOUT_FILENO);
-        close(inpipe[0]); close(inpipe[1]);
-        close(outpipe[0]); close(outpipe[1]);
+
+        close(inpipe[0]);
+        close(inpipe[1]);
+        close(outpipe[0]);
+        close(outpipe[1]);
+
         execve(interp.c_str(), args, &envp[0]);
-        exit(1);
+        _exit(1);
     }
 
     // parent
     close(inpipe[0]);
     close(outpipe[1]);
 
-    // écrire le body (POST) puis fermer
-    std::string body = req.getBody();
-    if (!body.empty())
-        write(inpipe[1], body.c_str(), body.size());
-    close(inpipe[1]);
-
-    // pipe sortie en NON-BLOQUANT
+    // pipes utilisés par le parent en non-bloquant
+    fcntl(inpipe[1], F_SETFL, O_NONBLOCK);
     fcntl(outpipe[0], F_SETFL, O_NONBLOCK);
 
-    // ajouter le pipe sortie à epoll
-    struct epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = outpipe[0];
-    epoll_ctl(epfd, EPOLL_CTL_ADD, outpipe[0], &ev);
-
-    // enregistrer le CGI en cours
     CgiProcess proc;
     proc.clientFd = clientFd;
     proc.pid = pid;
     proc.startTime = time(NULL);
     proc.output = "";
+    proc.inputFd = -1;
+
     _cgiProcesses[outpipe[0]] = proc;
+
+    // surveiller la sortie du CGI
+    struct epoll_event outputEvent;
+    outputEvent.events = EPOLLIN;
+    outputEvent.data.fd = outpipe[0];
+    epoll_ctl(epfd, EPOLL_CTL_ADD, outpipe[0], &outputEvent);
+
+    // attendre EPOLLOUT avant d’écrire le body POST
+    std::string body = req.getBody();
+
+    if (body.empty())
+        close(inpipe[1]);
+    else
+    {
+        _cgiProcesses[outpipe[0]].inputFd = inpipe[1];
+        _cgiInputBuffers[inpipe[1]] = body;
+
+        struct epoll_event inputEvent;
+        inputEvent.events = EPOLLOUT;
+        inputEvent.data.fd = inpipe[1];
+        epoll_ctl(epfd, EPOLL_CTL_ADD, inpipe[1], &inputEvent);
+    }
 }
 
 bool Server::isCgiPipe(int fd)
@@ -385,6 +421,40 @@ void Server::checkCgiTimeouts(int epfd)
 }
 
 
+void Server::writeCgiInput(int pipeFd, int epfd)
+{
+    std::map<int, std::string>::iterator it;
+    it = _cgiInputBuffers.find(pipeFd);
+
+    if (it == _cgiInputBuffers.end())
+        return;
+
+    std::string& body = it->second;
+    int written = write(pipeFd, body.c_str(), body.size());
+
+    if (written > 0)
+        body.erase(0, written);
+
+    if (written <= 0 || body.empty())
+    {
+        epoll_ctl(epfd, EPOLL_CTL_DEL, pipeFd, NULL);
+        close(pipeFd);
+        _cgiInputBuffers.erase(pipeFd);
+
+        for (std::map<int, CgiProcess>::iterator process = _cgiProcesses.begin();
+             process != _cgiProcesses.end(); ++process)
+        {
+            if (process->second.inputFd == pipeFd)
+            {
+                process->second.inputFd = -1;
+                break;
+            }
+        }
+    }
+}
+
+
+
 //----------------------------------------------------
 
 void Server::run() // fonction principal qui lance l'ecoute
@@ -401,8 +471,16 @@ void Server::run() // fonction principal qui lance l'ecoute
         while (i < n) // parcours tout les fd
         {
             int fd = events[i].data.fd; // recupere le fd
-            if (_cgiProcesses.find(fd) != _cgiProcesses.end())   // pipe CGI ?
+            if (_cgiInputBuffers.find(fd) != _cgiInputBuffers.end())
+            {
+                if (events[i].events & EPOLLOUT)
+                    writeCgiInput(fd, epfd);
+            }
+            // pipe de sortie CGI prêt pour être lu
+            else if (_cgiProcesses.find(fd) != _cgiProcesses.end())
+            {
                 readCgiOutput(fd, epfd);
+            }
             else if (isServerFd(fd)) // si le fd est un port normal connu
                     acceptClient(fd, epfd);
             else if ((events[i].events & EPOLLOUT))// c un client deja connu

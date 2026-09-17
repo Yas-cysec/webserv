@@ -31,6 +31,7 @@ class Server
         std::map<int, std::string> _readBuffers;   // fd → ce qu'on a accumulé
 
         std::map<int, CgiProcess> _cgiProcesses;
+        std::map<int, std::string> _cgiInputBuffers;
 
 
     public :
@@ -50,6 +51,7 @@ class Server
         void readCgiOutput(int fd, int epfd);
         void startCgi(Request& req, int clientFd, int epfd);
         void checkCgiTimeouts(int epfd);
+        void writeCgiInput(int fd, int epfd);
 };
 
 
