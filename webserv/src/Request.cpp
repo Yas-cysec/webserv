@@ -241,7 +241,13 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
     if (tryCgi())
         return true;
 
-    std::string full_path = _config.get_root() + _path; // www/index.html
+    const Location* loc = getMatchedLocation();
+    std::string root = _config.get_root();
+
+    if (loc != NULL && !loc->_root.empty())
+        root = loc->_root;
+
+    std::string full_path = root + _path;
     std::ifstream file(full_path.c_str()); // ouvre le 
 
     if (!file.is_open()) // si ca ouvre pas
