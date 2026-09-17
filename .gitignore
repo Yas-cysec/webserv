@@ -1,0 +1,10 @@
+*.o
+/webserv
+/sample.txt
+/uploads/*
+!/uploads/.gitkeep
+/help_txt/
+/plan-day.txt
+/plan_comprehension.txt
+/question.txt
+/webserv.zip
