@@ -49,7 +49,7 @@ class Server
         bool isCgiPipe(int fd);
         void readCgiOutput(int fd, int epfd);
         void startCgi(Request& req, int clientFd, int epfd);
-        void checkCgiTimeouts(int epfd)
+        void checkCgiTimeouts(int epfd);
 };
 
 
