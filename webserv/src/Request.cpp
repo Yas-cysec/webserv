@@ -271,6 +271,11 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
 
 bool Request::handle_post()
 {
+    if (_path.find("..") != std::string::npos)
+    {
+     setError(403);
+        return false;
+    }   
     if (_requestBody.size() > _config.get_maxbodySize()) 
     {
         setError(413);
@@ -288,12 +293,16 @@ bool Request::handle_post()
     std::string full_path;
     const Location* loc = getMatchedLocation();
     if (loc != NULL && !loc->_upload.empty())
-        full_path = loc->_upload + _path;        // dossier upload de la location
+    {
+        std::string relativePath = _path.substr(loc->_path.size());
+        full_path = loc->_upload + relativePath;
+    }   
     else
-        full_path = _config.get_root() + _path;  // sinon le root normal
+    {
+    full_path = _config.get_root() + _path;
+    }
 
-
-    std::ofstream file(full_path.c_str()); // ouvre en ecriture.. 
+    std::ofstream file(full_path.c_str(), std::ios::binary); // ouvre en ecriture.. 
      if (!file.is_open())
     {
         setError(500);
