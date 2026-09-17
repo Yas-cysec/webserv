@@ -44,7 +44,6 @@ class Cgi
 };
 
 // on fais 3 choses : 
-/*
 lancer le script (fork + exec)
 
 recuperer le html (lecture du pipe)
