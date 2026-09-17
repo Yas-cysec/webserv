@@ -222,42 +222,43 @@ bool Request::tryCgi()
 }
 
 
-
 bool Request::handle_get() // cherche le fichier et lit son contenu 
 {
-   
-    if (_path.find("..") != std::string::npos)   // contient ".." ?
+    if (_path.find("..") != std::string::npos)  // contient ".." ?
     {
         setError(403);
         return false;
     }
 
-     if (handleRedirect())          // redirection ?
+    if (handleRedirect())         // redirection ?
         return true;
-    
-    if (!_path.empty() && _path[_path.size() - 1] == '/')
+
+    std::string originalPath = _path;
+    bool directoryRequest =
+        !_path.empty() && _path[_path.size() - 1] == '/';
+
+    if (directoryRequest)
     {
         const Location* loc = getMatchedLocation();
         std::string indexFile = _config.get_index();
 
         if (loc != NULL && !loc->_index.empty())
             indexFile = loc->_index;
-        
         if (!indexFile.empty())
             _path += indexFile;
     }
 
 
-    // url parse pour cgi.. 
+    // url parse pour cgi..
     std::string queryString = "";
     std::size_t pos = _path.find("?"); // 3 chemin : path + ? (sep) + param : /index.html?lang=fr
-    if (pos != std::string::npos) // y'a un ? 
+    if (pos != std::string::npos) // y'a un ?
     {
         queryString = _path.substr(pos + 1); // param
         _path = _path.substr(0, pos); 
     }
 
-        // cgi
+    // cgi
     if (tryCgi())
         return true;
 
@@ -267,12 +268,13 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
     if (loc != NULL && !loc->_root.empty())
         root = loc->_root;
 
+    std::string directoryPath = root + originalPath;
     std::string full_path = root + _path;
     std::ifstream file(full_path.c_str()); // ouvre le 
 
     if (!file.is_open()) // si ca ouvre pas
     {
-         if (tryAutoindex(full_path)) // autoindex ?
+        if (directoryRequest && tryAutoindex(directoryPath)) // autoindex ?
             return true;
         setError(404);
         return false; // fichier absen -> error 404
@@ -281,9 +283,9 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
     std::string content,line;
     while (std::getline(file, line))
         content += line + "\n";
-    if (content.empty())               // rien lu → sûrement un dossier ou vide
+    if (content.empty())              // rien lu → sûrement un dossier ou vide
     {
-        if (tryAutoindex(full_path))   // autoindex ?
+        if (directoryRequest && tryAutoindex(directoryPath))  // autoindex ?
             return true;
         setError(404);
         return false;
