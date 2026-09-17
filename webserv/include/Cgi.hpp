@@ -17,6 +17,8 @@ struct CgiProcess
     std::string output;    // ce qu'on a lu jusqu'ici
 };
 
+
+/*
 class Cgi
 {
     private:

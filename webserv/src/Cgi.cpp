@@ -3,6 +3,9 @@
 #include <sys/wait.h>
 #include <cstdlib>
 
+
+/*ancienne version
+
 Cgi::Cgi(const std::string& interpreter, const std::string& scriptPath, const std::string &method, 
     const std::string &queryString, const std::string &contentLen, const std::string &contentType,
     const std::string &pathInfo, const std::string &body): _interpreter(interpreter), _scriptPath(scriptPath), _methods(method), _queryString(queryString),
@@ -115,9 +118,6 @@ std::string Cgi::execute()
     }
     return (_contentHtml);
 }
-
-
-/*
 
 
 ce que j'ai capter : 
