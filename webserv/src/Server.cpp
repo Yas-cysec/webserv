@@ -232,7 +232,6 @@ void Server::startCgi(Request& req, int clientFd, int epfd)
 
     if (pipe(inpipe) == -1)
         return;
-
     if (pipe(outpipe) == -1)
     {
         close(inpipe[0]);
@@ -243,10 +242,19 @@ void Server::startCgi(Request& req, int clientFd, int epfd)
     // préparer args + env AVANT le fork
     std::string interp = req.getCgiInterpreter();
     std::string script = req.getCgiScriptPath();
+    std::string scriptDirectory = ".";
+    std::string scriptName = script;
+
+    std::string::size_type slash = script.find_last_of('/');
+    if (slash != std::string::npos)
+    {
+        scriptDirectory = script.substr(0, slash);
+        scriptName = script.substr(slash + 1);
+    }
 
     char* args[] = {
         (char*)interp.c_str(),
-        (char*)script.c_str(),
+        (char*)scriptName.c_str(),
         NULL
     };
 
@@ -262,7 +270,6 @@ void Server::startCgi(Request& req, int clientFd, int epfd)
     envp.push_back(NULL);
 
     pid_t pid = fork();
-
     if (pid == -1)
     {
         close(inpipe[0]);
@@ -274,6 +281,9 @@ void Server::startCgi(Request& req, int clientFd, int epfd)
 
     if (pid == 0) // enfant
     {
+        if (chdir(scriptDirectory.c_str()) == -1)
+            _exit(1);
+
         dup2(inpipe[0], STDIN_FILENO);
         dup2(outpipe[1], STDOUT_FILENO);
 
@@ -290,26 +300,26 @@ void Server::startCgi(Request& req, int clientFd, int epfd)
     close(inpipe[0]);
     close(outpipe[1]);
 
-    // pipes utilisés par le parent en non-bloquant
     fcntl(inpipe[1], F_SETFL, O_NONBLOCK);
+
+    // pipe sortie en NON-BLOQUANT
     fcntl(outpipe[0], F_SETFL, O_NONBLOCK);
 
+    // enregistrer le CGI en cours
     CgiProcess proc;
     proc.clientFd = clientFd;
     proc.pid = pid;
     proc.startTime = time(NULL);
     proc.output = "";
     proc.inputFd = -1;
-
     _cgiProcesses[outpipe[0]] = proc;
 
-    // surveiller la sortie du CGI
+    // ajouter le pipe sortie à epoll
     struct epoll_event outputEvent;
     outputEvent.events = EPOLLIN;
     outputEvent.data.fd = outpipe[0];
     epoll_ctl(epfd, EPOLL_CTL_ADD, outpipe[0], &outputEvent);
 
-    // attendre EPOLLOUT avant d’écrire le body POST
     std::string body = req.getBody();
 
     if (body.empty())
