@@ -22,11 +22,6 @@ struct sockaddr_in makeaddr(int port)
 
 bool Server::start(int port, const ServerConfig& config)
 {
-    std::cout << "START port=" << port
-          << " map size=" << _portToFd.size()
-          << " deja ouvert="
-          << (_portToFd.find(port) != _portToFd.end())
-          << std::endl;
     std::map<int, int>::iterator it = _portToFd.find(port);
 
     if (it != _portToFd.end())
