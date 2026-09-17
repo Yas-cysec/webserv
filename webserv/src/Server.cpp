@@ -195,17 +195,12 @@ void Server::readClient(int clientFd, int epfd)
         return;  // attend prochain 
 
     // Parser requetes 
-    Request req;
-    if (!req.InitRequestParser(_readBuffers[clientFd]))   // parsing échoue ?
-        {
-            req.setError(400);                // → préparer une 400
-        }
-    else
-        {
-            int serverFd = _clientToServerFd[clientFd];
-            req.set_config(choose_config(_fdToConfigs[serverFd], req));  // choisir la config 
-            req.act_request();                // traite normalement
-        }
+    if (req.InitRequestParser(_readBuffers[clientFd]))
+    {
+        int serverFd = _clientToServerFd[clientFd];
+        req.set_config(choose_config(_fdToConfigs[serverFd], req));
+        req.act_request();
+    }
 
     // NEW : si c un cgi on lance (non bloquant au lieu de repondre direct)
     if (req.isCgi())
