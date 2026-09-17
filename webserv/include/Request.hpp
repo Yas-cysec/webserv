@@ -7,6 +7,7 @@
 #include <string>
 #include <unistd.h> 
 #include "Config.hpp"
+#include <fstream>
 #include <dirent.h> 
 #include "Cgi.hpp"
 
@@ -41,7 +42,7 @@ class Request
         bool handle_post();
         bool handle_delete();
         std::string build_response();
-        void parse_request_line(std::istringstream& stream);
+        bool parse_request_line(std::istringstream& stream);
         bool parse_headers(std::istringstream& stream);
         void parse_body(std::istringstream& stream);
         void setError(int code);

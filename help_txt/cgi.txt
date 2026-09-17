@@ -68,3 +68,15 @@ print("<html><body>")
 print("<h1>Mon CGI marche !</h1>")
 print("</body></html>")
 
+
+
+
+variable environnment : ce sont des mots cles qu'on donne
+pour donner des info avant de lancer.. 
+NOM=valeur.. 
+
+
+le post.. : client envoie des donnes -> script recois et traite
+
+get - je lis la sortie du script.
+post - je dois envoyer 

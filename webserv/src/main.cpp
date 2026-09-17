@@ -6,7 +6,7 @@
 
 #include <csignal>
 
-volatile sig_atomic_t g_running = 1;
+volatile sig_atomic_t g_running = 1; // ctrl + C 
 
 void handleSignal(int sig)
 {
@@ -32,7 +32,7 @@ int main(int argc, char** argv)
 
     Server server;   // constructeur vide
 
-    for (std::size_t i = 0; i < servers.size(); i++)          // tous les blocs
+    for (std::size_t i = 0; i < servers.size(); i++)
     {
         const std::vector<int>& ports = servers[i].getPorts();
         for (std::size_t j = 0; j < ports.size(); j++)         // tous les ports

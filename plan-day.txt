@@ -1,0 +1,75 @@
+
+
+mercredi 2 sept : 
+    - compris bind, listen, addr struct pour bind, socket, fd, map du debut et le main)
+
+
+jeudi 3 sept :
+
+-  la fin de listen et les push back
+la comprehension du schem du fd avec ceux qu'on parse deja
+genre comment c lier ? 
+
+- tout epoll dans run 
+
+- ensuite le while dans run (en gros run entier)
+
+
+
+
+
+vendredi 4 sept : 
+
+- le parsing request et lecture 
+- et envoie de reponse 
+
+samedi ou dimanche : 
+
+ - cgi complet 
+ - fin de projets
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-----------------------------------
+
+semaine suivante
+
+
+lundi 7 :
+- trouve mate 
+- entraine toi a modifier du code en testant
+
+semaine du 7-... rend projets. 
+
+
+week end de la semaine du 7 :
+revision exam 
+
+- dans 2 semaine du coup 
+    - finir exam entierement
+    - rendre 1 ou 2 cpp 
+
+- dans 3 semaine : 
+    - rendre cpp 
+    - debuter le projet solo rapidement

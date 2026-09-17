@@ -1,0 +1,257 @@
+
+
+parse listen : DONE
+
+
+parse location : 
+
+
+
+1 - 
+on appel l'obj loc qui contient les var loc
+
+gestion du mot location dans la line et {
+
+
+2 - on use getline pour avancer les lines 
+on efface les espaces 
+detection de fin if } 
+
+
+3 - check directives par directives : 
+
+rappel : 
+    - allow methods : done
+    - client max body : 
+    - return 
+    - root 
+    - autoindex
+    - index
+    - upload 
+    - cgi
+
+
+4 - 
+
+a savoir : 
+    c'est systematiquement les meme methods qu'on fais 
+    /
+    vu que tous doivent tenir sur une ligne 
+    donc on va jsuqu;a la fin de la directive et avant le dernier char qui doit etre ;
+    et la on recupere le word a stocker.
+   
+
+
+-- l'ecriture et plan 
+
+
+    parse methods: done 
+    autoindex: done (si une page est pas dispo ca t'affiche tout les dossier)
+    return redirect : done (sur /old on redirive vers une new adresse )
+
+
+    root : done (permet de donner le path par defaut le constrcteur le met a www)
+    index : done (permet d'avoir un link en cas de manque d'info genre jsute /)
+    upload : done dit ou on stock les post du client
+
+    donc la logique ? 
+
+
+DONE 
+
+
+- parse body max : la taille max que le client peux envoyer : DONE 
+
+- root : same que location meme concept : DONE 
+
+- index : done 
+
+- server name : done il s'agit juste du nom du serveur 
+
+- error page : done 
+
+
+
+PARSING FINIS ENTIEREMENT ! 
+
+
+MISE EN PLACE DU RESEAU : 
+
+comprendre le fonctionnement. 
+
+ok  donc un client veux se connecter a mon reseau. 
+quel est donc la logique la dedans.. 
+
+bah je dois preparer mon serveur a recevoir des connexion.. 
+pour cela j'ouvre un canal de connexion qui sera un fd (il s'agit de socket)
+ensuite via ce socket de canal. je dois correlere ce canal fd a un port precis
+et la c'est bind qui agis (il prend un port et avec cela il le met au fd)
+
+
+
+je devrais creer un fichie et class du coup server. 
+
+init_server 
+-> tu va creer un fd via socket
+-> use ce socket avec bind et le correler a ton config port ()
+-> ensuite le mettre en listen (non bloquant ?)
+
+
+
+
+init_server class 
+
+std::map[int fd precis, vector [serverconfig]];
+
+creation de ma fonction start 
+
+
+mise en include : 
+
+map<int (fd), vector(de type config) (port etc..)> _serverfds; 
+
+bool start (int port, serverconfig config)
+{
+    creer fd = socket (ipv4, tcp (secu), 0 )
+    if (fd == -1 ) return une erreur
+    {
+        std::cerr("erreur std");
+        return false;
+    }
+    fcntl(fd, F_SETFL, O_NONBLOCK); // je met le fd en non bloquant
+    int opt = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))
+        == - 1 on close fd
+    struct sockaddr_in addr = makeaddr(port) // init
+
+
+    if bind (fd, addr, sizeof)
+        acoller un port au fd.. 
+
+
+    if listen(fd, SOMAXCONN) == -1 
+        close fd..etc.
+    
+
+    
+
+    pareil.. 
+
+    via un fd -> on correle une config.
+    dans le main on lance start avec port en parametre 
+    dans start on use bind qui lie ce port au fd.. ensuite on enregistre dans _serverfd
+
+    _serverfd.push_back(fd);
+    
+
+}
+
+
+
+
+while (port[i])\
+
+map [port, (contenu)]
+
+
+
+
+----------------------------------------------------
+
+le main te dis : 
+
+pour chaques servers 
+
+    boucle de ports mtn 
+        donc poiur chaque port de chaque servers
+            donc chaques port on les init (start et fd..)
+
+on lance run.. 
+
+
+    epoll hold 
+        simplement on init les surveillants pour tout les fd..
+
+    - stocker un tableau pour rentrer 100 fd prets (limiet que j'impose)
+
+    - n renvoie le nombre de fd prets (grace a epoll wait)
+
+    ensuite on balance un while qui parcours chaques fd reelement prets et qui ont envoyer des donnes
+
+    fd = events[i].fd // la on recupere le fd du premier fd pret
+
+
+        - debut cgi 
+        - si le fd est connu 
+            on accept le client et non bloquant aussi (a creuser)
+        
+        -
+
+
+
+
+--------------------------
+
+recap: 
+
+webserv projet serveur
+
+    1 - parsing du fichier de config 
+dans main. 
+    on recupere chaque serveur
+    dans chaque serveur on vois son nombre de port
+    2 -   on start (init ses fd pour chaques port.)
+            creation du fd avec le port en param (bind .. )
+            non bloquant 
+            30 sec de coupage donc relance server
+            bind 
+            listen 
+            enregistrement et push back.. 
+    3 -   on run 
+            on init notre epoll (
+                    - creation du fd epoll 
+                    [pour chaque fd, on les met en pret a recevoir et on renseinge le fd] on les surveille
+                    )
+            tableau de 100 pour stocker les fd pret (en donnee)
+            epoll wait (sert a demander aux sys cb de fd sont pret et les stocke dans le tab 100.. puis return son nombre)
+            
+            - on lance une boucle du nombre de fd pret via wait..
+                    on recupere le vrai fd concerner qui est pret 
+                        - si : 
+                                - (CGI PLUS TARD) - !!!!!!!!!!!!
+                                - si : c un port connu (socket server)
+                                    on accept (
+                                        a partir du fd server on return un fd client via accept
+                                        on met ce fd client en non bloquant 
+                                        on stocke les valeur (fd client et la map client sur le fd serv)
+                                        on rajoute ce fd a la liste de surveillance comme etant pret et wait agis sur cette liste
+                                    )
+                                - si : il s'agit d'un fd qui est mis en EPOLLOUT via event donc a ecrire
+                                    on lance send response
+                                    (
+                                        
+                                    )
+                                - sinon :  il s'agit d'un client 
+                                    tu lis :
+                                    {
+                                        on stock buffer un tableau 
+                                        on lis le contenu (stock dans buffer et return le nobmre de char ecris)
+                                            int bytes = recv(clienfd, buffer, 4096, 0);
+                                        on check si c une erreur ou si le client est parti (=0)
+                                        on met le contenant dans +reabuffer en+= 
+                                        on check si la requetes est ocmplete ou non 
+
+                                        et la on lance le parsing de requetes: 
+                                            - lance obj de type request 
+                                              init request parser : 
+                                              
+
+
+
+
+                                        }
+                            
+                                        
+
+
+

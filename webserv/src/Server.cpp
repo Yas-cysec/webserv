@@ -36,7 +36,7 @@ bool Server::start(int port, const ServerConfig& config)
         close(fd);
         return false;
     }
-    struct sockaddr_in addr = makeaddr(port);
+    struct sockaddr_in addr = makeaddr(port); // pour bind qui use cette struct
 
     if (bind (fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) // attacher port au canal socket fd
     {
@@ -70,13 +70,13 @@ int Server::epollHold() // init de epoll
     }
 
     size_t i = 0;
-    while (i < _serverFds.size()) // pour chaques socket 
+    while (i < _serverFds.size()) // pour chaques fd 
     {
         struct epoll_event ev;
-        ev.events = EPOLLIN;
+        ev.events = EPOLLIN; // pret a recevoir la lecture ?
         ev.data.fd = _serverFds[i];
 
-        if (epoll_ctl(epfd, EPOLL_CTL_ADD, _serverFds[i], &ev) == -1) // pour chaques socket on lui precise qui surveiller 
+        if (epoll_ctl(epfd, EPOLL_CTL_ADD, _serverFds[i], &ev) == -1) // ajout dans la liste a surveiller
         {
             std::cerr << "Erreur : epoll_ctl impossible" << std::endl;
             close(epfd);
@@ -139,7 +139,7 @@ bool Server::is_complete(const std::string& buffer) // request complete ?
         return true; // pas de contente lendgt -> pas de body -> complet (get delete)
     // 3 : POST : body a t'il atteint la taille annoncer ? 
     size_t clStart = pos_content_length + content_len.length();
-    int contentLength = atoi(buffer.c_str() + clStart); // taille du cl
+    int contentLength = atoi(buffer.c_str() + clStart); // taille du body
     size_t bodyStart = pos + 4; // debut body apres \r etc.. 
     size_t bodyReceived = buffer.size() - bodyStart; 
     return bodyReceived >= (size_t)contentLength;   // body complet ?
@@ -167,10 +167,9 @@ ServerConfig Server::choose_config(const std::vector<ServerConfig>& configs, Req
 
 void Server::readClient(int clientFd, int epfd)
 {
-
     char buffer[4096]; // stock  la requete car ecriture
     int bytes = recv(clientFd, buffer, sizeof(buffer) - 1, 0);
-    if (bytes <= 0) // 0 = client parti,  -1 = erreur
+    if (bytes <= 0) // 0 = client parti  -1 = erreur
     {
         close (clientFd);
         _readBuffers.erase(clientFd);   // nettoie le buffer du client parti
@@ -180,7 +179,7 @@ void Server::readClient(int clientFd, int epfd)
         return;
     }
     buffer[bytes] = '\0';
-    _readBuffers[clientFd] += buffer;   // ← ACCUMULE au lieu de traiter direct
+    _readBuffers[clientFd] += buffer;
 
      if (!is_complete(_readBuffers[clientFd]))   // requête pas complète ?
         return;  // attend prochain 
@@ -189,7 +188,7 @@ void Server::readClient(int clientFd, int epfd)
     Request req;
     if (!req.InitRequestParser(_readBuffers[clientFd]))   // parsing échoue ?
         {
-            req.setError(400);                // → prépare une 400
+            req.setError(400);                // → préparer une 400
         }
     else
         {
@@ -218,8 +217,7 @@ void Server::readClient(int clientFd, int epfd)
     epoll_ctl(epfd, EPOLL_CTL_MOD, clientFd, &ev);
 }
 
- // -------cgi--------------------
-
+//-----------------cgi--------------------
 
 void Server::startCgi(Request& req, int clientFd, int epfd)
 {
@@ -286,11 +284,11 @@ void Server::startCgi(Request& req, int clientFd, int epfd)
     _cgiProcesses[outpipe[0]] = proc;
 }
 
-
 bool Server::isCgiPipe(int fd)
 {
     return _cgiProcesses.find(fd) != _cgiProcesses.end();
 }
+
 
 void Server::readCgiOutput(int pipeFd, int epfd)
 {
@@ -345,6 +343,7 @@ void Server::readCgiOutput(int pipeFd, int epfd)
     epoll_ctl(epfd, EPOLL_CTL_MOD, clientFd, &ev);
 }
 
+
 void Server::checkCgiTimeouts(int epfd)
 {
     std::map<int, CgiProcess>::iterator it = _cgiProcesses.begin();
@@ -380,20 +379,18 @@ void Server::checkCgiTimeouts(int epfd)
 }
 
 
-
-
-// -------------------------------------------------
+//----------------------------------------------------
 
 void Server::run() // fonction principal qui lance l'ecoute
 {
     int epfd = epollHold(); // init epoll avec le fd 
     if (epfd == -1)
         return ;
-    struct epoll_event events[64];
+    struct epoll_event events[100]; // stock les fd prets (100 max)
 
     while (g_running) // debut boucle infini
     {
-        int n = epoll_wait(epfd, events, 64, 1000); 
+        int n = epoll_wait(epfd, events, 100, 1000);  // stocke les fd prets en info dans le tab
         int i = 0;
         while (i < n) // parcours tout les fd
         {
@@ -401,17 +398,18 @@ void Server::run() // fonction principal qui lance l'ecoute
             if (_cgiProcesses.find(fd) != _cgiProcesses.end())   // pipe CGI ?
                 readCgiOutput(fd, epfd);
             else if (isServerFd(fd)) // si le fd est un port normal connu
-                    acceptClient(fd, epfd); // accept la co (car c un futur client)
+                    acceptClient(fd, epfd);
             else if ((events[i].events & EPOLLOUT))// c un client deja connu
                     sendResponse(fd, epfd);
             else 
-                readClient(fd, epfd);
+                readClient(fd, epfd); // c forcement un client 
             i++;
         }
         checkCgiTimeouts(epfd);
     }
     close (epfd);
 }
+
 
 void Server::sendResponse(int clientFd, int epfd)
 {

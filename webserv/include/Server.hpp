@@ -20,12 +20,15 @@
 class Server
 {
     private :
-        std::map<int, std::vector<ServerConfig> > _fdToConfigs; // permet dávoir plus config differente selon server a stocker
-        std::vector<int> _serverFds;
-        std::vector<int> _clientFds;
+        std::map<int, std::vector<ServerConfig> > _fdToConfigs; // chaques config pour chaque fd precis
+        std::vector<int> _serverFds; // liste des fd d'ecoute (distibguer client de nouveau client d'ecoute)
+
+        std::vector<int> _clientFds; // fd cote clients
+        std::map<int, int> _clientToServerFd;   // d'ou viens le fd serrveur du fd client
+
         std::map<int, std::string> _responses;   // clientFd → sa réponse à envoyer
         std::map<int, std::string> _readBuffers;   // fd → ce qu'on a accumulé
-        std::map<int, int> _clientToServerFd;   // clientFd → la porte d'où il vient
+
         std::map<int, CgiProcess> _cgiProcesses;
 
 

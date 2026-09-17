@@ -1,5 +1,5 @@
 #include "Request.hpp"
-#include <fstream>
+
 
 /*
 comment debuter ? 
@@ -26,12 +26,40 @@ ligne 2 : on traite la requetes (agir selon ce qui est demander)
 
 */
 
-void Request::parse_request_line(std::istringstream& stream)
+bool Request::parse_request_line(std::istringstream& stream)
 {
     std::string line;
     std::getline(stream, line);
     std::istringstream iss(line);
-    iss >> _type >> _path >> _version;
+
+    if (!(iss >> _type >> _path >> _version))   // moins de 3 mots ?
+    {
+        setError(400);
+        return false;
+    }
+
+    // méthode connue ?
+    if (_type != "GET" && _type != "POST" && _type != "DELETE")
+    {
+        setError(405);
+        return false;
+    }
+
+    // version valide ?
+    if (_version != "HTTP/1.1" && _version != "HTTP/1.0")
+    {
+        setError(400);
+        return false;
+    }
+
+    // path commence par / ?
+    if (_path.empty() || _path[0] != '/')
+    {
+        setError(400);
+        return false;
+    }
+
+    return true;
 }
 
 bool Request::parse_headers(std::istringstream& stream)
@@ -50,10 +78,13 @@ bool Request::parse_headers(std::istringstream& stream)
 
         std::string key = line.substr(0, pos);
         std::string value = line.substr(pos + 1);
-        if (key.empty())
+        if (key.empty() || key.find_first_of(" \t") != std::string::npos)
             return false;
-        if (!value.empty() && value[0] == ' ')
-            value.erase(0, 1);
+        size_t start = value.find_first_not_of(" \t");
+        if (start == std::string::npos)
+            value.clear();
+        else
+            value.erase(0, start);
         _headers[key] = value;
     }
     if (_headers.find("Host") == _headers.end())
@@ -73,9 +104,10 @@ bool Request::InitRequestParser(const std::string& buff)
 {
     if (buff.empty())
         return false;
-    std::istringstream stream(buff); // le creer en flux.
+    std::istringstream stream(buff); // le creer en flux : permet de simplement recup chaque.
 
-    parse_request_line(stream); // 1 ere ligne parser
+    if (!parse_request_line(stream))
+        return false; // 1 ere ligne parser
     if (!parse_headers(stream)) // parser headers
         return false;
     parse_body(stream); // parse le body
@@ -207,16 +239,25 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
      if (handleRedirect())          // redirection ?
         return true;
     
-    if (_path == "/")
-        _path = "/" + _config.get_index();
+    if (!_path.empty() && _path[_path.size() - 1] == '/')
+    {
+        const Location* loc = getMatchedLocation();
+        std::string indexFile = _config.get_index();
+
+        if (loc != NULL && !loc->_index.empty())
+            indexFile = loc->_index;
+        
+        if (!indexFile.empty())
+            _path += indexFile;
+    }
 
 
     // url parse pour cgi.. 
     std::string queryString = "";
-    std::size_t pos = _path.find("?");
+    std::size_t pos = _path.find("?"); // 3 chemin : path + ? (sep) + param : /index.html?lang=fr
     if (pos != std::string::npos) // y'a un ? 
     {
-        queryString = _path.substr(pos + 1);
+        queryString = _path.substr(pos + 1); // param
         _path = _path.substr(0, pos); 
     }
 
@@ -225,9 +266,9 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
         return true;
 
     std::string full_path = _config.get_root() + _path; // www/index.html
-    std::ifstream file(full_path.c_str());
+    std::ifstream file(full_path.c_str()); // ouvre le 
 
-    if (!file.is_open())
+    if (!file.is_open()) // si ca ouvre pas
     {
          if (tryAutoindex(full_path)) // autoindex ?
             return true;
@@ -250,16 +291,6 @@ bool Request::handle_get() // cherche le fichier et lit son contenu
     _body = content; // on stocke pour l'envoyer plus tard (le fichier html..)
     return true;
 }
-
-
-// void Request::send_response(int clientfd) // envoie reponse au client -> page affiche
-// {
-//     std::string response = build_response();// recupere la reponse stocker
-//     send(clientfd, response.c_str(), response.size(), 0); // envoie..
-//     _responses.erase(clientfd); // nettoie la map.. 
-//     epoll_ctl(epdf, EPOLL_CTL_DEL, clientFd, NULL); // retire de epoll
-//     close(clientfd); // ferme la connexion
-// }
 
 
 bool Request::handle_post()
@@ -413,11 +444,11 @@ void Request::setError(int code)
 {
     _status = code;
     // il y a une page custom dans la config ??
-    std::map<int, std::string>::const_iterator it = _config.getError_pages().find(code);
-    if (it != _config.getError_pages().end())
+    std::map<int, std::string>::const_iterator it = _config.getError_pages().find(code); // demande a map get error de trouver code
+    if (it != _config.getError_pages().end()) // si on a trouver
     {
         // charger le fichier custom
-        std::string full_path = _config.get_root() + it->second;
+        std::string full_path = _config.get_root() + it->second; // le path complet
         std::ifstream file(full_path.c_str());
         if (file.is_open())
         {
@@ -450,71 +481,3 @@ std::string Request::getHost()
 
 
 
-
-/*
-
-
-
-À corriger avant de partir trop loin :
-Mettre les sockets en non-bloquant avec fcntl(..., O_NONBLOCK).
-epoll seul ne rend pas tes sockets non-bloquants.
-
-Garder un buffer par client.
-Là, tu fais un seul recv() puis tu supposes que toute la requête est arrivée. Ce n’est pas toujours vrai.
-
-Gérer les envois partiels.
-send() peut envoyer seulement une partie de la réponse. Il faut garder ce qui reste à envoyer.
-
-Valider vraiment la requête.
-Tu appelles InitRequestParser(), mais tu n’utilises pas son résultat et tu n’appelles pas Parser(). Une requête invalide doit devenir 400, pas continuer normalement.
-
-Corriger le GET statique :
-fichier vide doit être 200, pas 404 ; MIME types ; empêcher ../.
-
-POST doit garder le body exactement comme reçu.
-Ton getline() rajoute des retours à la ligne, donc un vrai fichier binaire serait modifié.
-
-
-1. Mettre tous les sockets en non-bloquant
-2. Garder un buffer de lecture par client
-3. Attendre la requête complète avant de la parser
-4. Garder un buffer d’écriture par client
-5. Reprendre l’envoi si send() n’a envoyé qu’une partie
-6. Nettoyer un client qui coupe la connexion
-7. Répondre 400 si la requête est invalide
-8. Sécuriser GET : pas de ../, fichier vide = 200, bon Content-Type
-9. Garder le body POST exactement comme reçu
-*/
-
-
-/*
-comprehension du non bloquant : 
-notre projet gere client apres client mais tres rapidement illusion de parallele
-
-un buffer par client 
-
-on regele juste en mettant une option Ononblock pour le fd
-on use fcntl (modifie les reglages d'un fd) 
-
-en gros la logique c : 
-
-    disons on a 3 Monsieurs A et B sont lent et C et complet.. 
-        A envoie un bout (on lis -> et met dans _buffer[a] ->
-        check si c pas complet -> on laisse et passe a autre chose
-        B -> pareil 
-        C envoie tout -> tu lis (_buffer[C] complet -> tu traite C 
-            et tu reponds.. 
-voila la logique.. 
-
-avant nous on faisait : 
-    recv (Fonction qui lit ce que le client t'envoie) prend data
-    et met dans buffer.. ca c normal mais en gros le pb c que 
-    on utiliser recv que 1 fois considerant que tout est envoyer 
-    d'un coup... 
-
-        
-    en gros on stoc un buffer par client on continue le programme
-
-    concernant le send aussi on considere qu'on envoie tout d'un coup.. faut gerer
-    ce non bloquant.. 
-*/
