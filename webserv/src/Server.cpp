@@ -331,7 +331,6 @@ bool Server::isCgiPipe(int fd)
     return _cgiProcesses.find(fd) != _cgiProcesses.end();
 }
 
-
 void Server::readCgiOutput(int pipeFd, int epfd)
 {
     CgiProcess& proc = _cgiProcesses[pipeFd];
@@ -351,29 +350,57 @@ void Server::readCgiOutput(int pipeFd, int epfd)
 
     int status;
     waitpid(proc.pid, &status, 0);
+
     // construire la réponse HTTP avec la sortie du script
     std::ostringstream resp;
-    if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
     {
         // script planté → 500
         std::string body = "<h1>Error 500</h1>";
+
         resp << "HTTP/1.1 500 Internal Server Error\r\n";
         resp << "Content-Length: " << body.size() << "\r\n";
-        resp << "Content-Type: text/html\r\n\r\n";
+        resp << "Content-Type: text/html\r\n";
+        resp << "Connection: close\r\n";
+        resp << "\r\n";
         resp << body;
     }
-    else 
-    {   
+    else
+    {
+        std::string body = proc.output;
+        std::string::size_type headerEnd;
+
+        headerEnd = body.find("\r\n\r\n");
+
+        if (headerEnd != std::string::npos)
+            body.erase(0, headerEnd + 4);
+        else
+        {
+            headerEnd = body.find("\n\n");
+
+            if (headerEnd != std::string::npos)
+                body.erase(0, headerEnd + 2);
+        }
+
         resp << "HTTP/1.1 200 OK\r\n";
-        resp << "Content-Length: " << proc.output.size() << "\r\n";
+        resp << "Content-Length: " << body.size() << "\r\n";
         resp << "Content-Type: text/html\r\n";
+        resp << "Connection: close\r\n";
         resp << "\r\n";
-        resp << proc.output;
+        resp << body;
     }
+
     _responses[clientFd] = resp.str();
 
     // nettoyer le CGI
-    waitpid(proc.pid, NULL, 0);
+    if (proc.inputFd != -1)
+    {
+        epoll_ctl(epfd, EPOLL_CTL_DEL, proc.inputFd, NULL);
+        close(proc.inputFd);
+        _cgiInputBuffers.erase(proc.inputFd);
+    }
+
     epoll_ctl(epfd, EPOLL_CTL_DEL, pipeFd, NULL);
     close(pipeFd);
     _cgiProcesses.erase(pipeFd);
@@ -384,6 +411,7 @@ void Server::readCgiOutput(int pipeFd, int epfd)
     ev.data.fd = clientFd;
     epoll_ctl(epfd, EPOLL_CTL_MOD, clientFd, &ev);
 }
+
 
 
 void Server::checkCgiTimeouts(int epfd)
