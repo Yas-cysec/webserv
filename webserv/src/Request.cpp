@@ -322,25 +322,44 @@ bool Request::handle_post()
     return true;
 }
 
+
+
 bool Request::handle_delete()
 {
-    std::string full_path = _config.get_root() + _path;
-    if (std::remove(full_path.c_str()) == 0) // suppresion reussi
+    if (_path.find("..") != std::string::npos)
+    {
+        setError(403);
+        return false;
+    }
+
+    const Location* loc = getMatchedLocation();
+    std::string full_path;
+
+    if (loc != NULL && !loc->_upload.empty())
+    {
+        std::string relativePath = _path.substr(loc->_path.size());
+        full_path = loc->_upload + relativePath;
+    }
+    else
+    {
+        std::string root = _config.get_root();
+
+        if (loc != NULL && !loc->_root.empty())
+            root = loc->_root;
+
+        full_path = root + _path;
+    }
+
+    if (std::remove(full_path.c_str()) == 0)
     {
         _status = 200;
         _body = "<h1>File deleted</h1>";
         return true;
     }
-    else 
-    {
-        setError(404);
-        return false;
-    }
-    return true;
 
+    setError(404);
+    return false;
 }
-
-
 
 bool Request::is_method_allowed()
 {
