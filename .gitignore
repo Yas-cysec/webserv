@@ -1,13 +1,10 @@
 *.o
-/webserv/webserv
-/webserv/sample.txt
-/webserv/uploads/*
-!/webserv/uploads/.gitkeep
+/webserv
+/sample.txt
+/uploads/*
+!/uploads/.gitkeep
 /help_txt/
 /plan-day.txt
 /plan_comprehension.txt
 /question.txt
 /webserv.zip
-/uploads/
-/www/
-/www2/
