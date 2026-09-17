@@ -463,7 +463,7 @@ std::string Request::build_response() // ajoute la structure http de la reponse 
     else
         response << "HTTP/1.1 500 Internal Server Error\r\n";
 
-    if (_status == 200)
+    if (_status == 200 && _type == "GET")
         contentType = get_content_type(_path);
     response << "Content-Length: " << _body.size() << "\r\n";
     response << "Content-Type: " << contentType << "\r\n";
