@@ -195,6 +195,7 @@ void Server::readClient(int clientFd, int epfd)
         return;  // attend prochain 
 
     // Parser requetes 
+    Request req;
     if (req.InitRequestParser(_readBuffers[clientFd]))
     {
         int serverFd = _clientToServerFd[clientFd];
