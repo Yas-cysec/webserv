@@ -22,6 +22,15 @@ struct sockaddr_in makeaddr(int port)
 
 bool Server::start(int port, const ServerConfig& config)
 {
+    std::map<int, int>::iterator it = _portToFd.find(port);
+
+    if (it != _portToFd.end())
+    {
+        // Port déjà ouvert : on associe seulement la nouvelle config
+        _fdToConfigs[it->second].push_back(config);
+        return true;
+    }
+
     int fd = socket(AF_INET, SOCK_STREAM, 0); // creer le fd de canal de comm 
     if (fd == -1)
     {
@@ -51,6 +60,7 @@ bool Server::start(int port, const ServerConfig& config)
         return false;
     }
     _serverFds.push_back(fd); // rajout de mon fd dans mon vector 
+    _portToFd[port] = fd;
     _fdToConfigs[fd].push_back(config); // je lie le port a sa config.. 
     std::cout << "Serveur en ecoute sur le port " << port << std::endl;
     return true;

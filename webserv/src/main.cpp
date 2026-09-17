@@ -36,7 +36,9 @@ int main(int argc, char** argv)
     {
         const std::vector<int>& ports = servers[i].getPorts();
         for (std::size_t j = 0; j < ports.size(); j++)         // tous les ports
-            server.start(ports[j], servers[i]);                // port + sa config
+            if (!server.start(ports[j], servers[i]))
+                return 1;
+          // port + sa config
     }
 
     server.run();

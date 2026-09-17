@@ -26,6 +26,7 @@ class Server
         std::vector<int> _clientFds; // fd cote clients
         std::map<int, int> _clientToServerFd;   // d'ou viens le fd serrveur du fd client
 
+        std::map<int, int> _portToFd;
         std::map<int, std::string> _responses;   // clientFd → sa réponse à envoyer
         std::map<int, std::string> _readBuffers;   // fd → ce qu'on a accumulé
 
