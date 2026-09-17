@@ -148,7 +148,18 @@ const Location* Request::getMatchedLocation()
 
 bool Request::tryAutoindex(const std::string& full_path)
 {
+    
+
     const Location* loc = getMatchedLocation();
+
+    std::cerr << "full_path = " << full_path << std::endl;
+    if (loc == NULL)
+        std::cerr << "location = NULL" << std::endl;
+    else
+    {
+        std::cerr << "location = " << loc->_path << std::endl;
+        std::cerr << "autoindex = " << loc->_autoindex << std::endl;
+    }
     if (loc != NULL && loc->_autoindex)
     {
         std::string listing = list_directory(full_path);
