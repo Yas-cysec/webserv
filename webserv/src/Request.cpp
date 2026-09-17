@@ -1,30 +1,6 @@
 #include "Request.hpp"
 
 
-/*
-comment debuter ? 
-
-    requetes -> long texte
-                je dois decouper via getline et stocker
-                use -> istringstream (decoupe ligne par espaces)
-
-
-    GET / HTTP/1.1
-Host: localhost:8080
-User-Agent: curl/7.81.0
-Accept: *
-
-
-ligne 1 : on stock get le chemin et la version.. + parsing requete
-        on s'est assurer que le fichier est conforme dans le stockage
-        (il manque post)
-             - si requete vide
-             - si header sans nom etc..
-
-ligne 2 : on traite la requetes (agir selon ce qui est demander)
-
-
-*/
 
 bool Request::parse_request_line(std::istringstream& stream)
 {
@@ -397,10 +373,29 @@ void Request::act_request() // quel requetes c'est ?
     }
 }
 
-std::string Request::build_response() // ajoute la structure http de la reponse pour que http comprenne
+static std::string get_content_type(const std::string& path)
+{
+    if (path.size() >= 5 && path.substr(path.size() - 5) == ".html")
+        return "text/html";
+    if (path.size() >= 4 && path.substr(path.size() - 4) == ".css")
+        return "text/css";
+    if (path.size() >= 3 && path.substr(path.size() - 3) == ".js")
+        return "application/javascript";
+    if (path.size() >= 4 && path.substr(path.size() - 4) == ".png")
+        return "image/png";
+    if (path.size() >= 4 && path.substr(path.size() - 4) == ".jpg")
+        return "image/jpeg";
+    if (path.size() >= 4 && path.substr(path.size() - 4) == ".txt")
+        return "text/plain";
+    return "application/octet-stream";
+}
 
+
+std::string Request::build_response() // ajoute la structure http de la reponse pour que http comprenne
 {
     std::stringstream response;
+    std::string contentType = "text/html";
+
     if (_status == 200)
         response << "HTTP/1.1 200 OK\r\n";
     else if (_status == 201)
@@ -422,10 +417,17 @@ std::string Request::build_response() // ajoute la structure http de la reponse 
         response << "HTTP/1.1 413 Payload Too Large\r\n";
     else if (_status == 500)
         response << "HTTP/1.1 500 Internal Server Error\r\n";
+    else
+        response << "HTTP/1.1 500 Internal Server Error\r\n";
+
+    if (_status == 200)
+        contentType = get_content_type(_path);
     response << "Content-Length: " << _body.size() << "\r\n";
-    response << "Content-Type: text/html\r\n";
-    response << "\r\n";      // ligne vide
-    response << _body;       //  HTML
+    response << "Content-Type: " << contentType << "\r\n";
+    response << "Connection: close\r\n";
+    response << "\r\n";
+    response << _body;
+
     return response.str();
 }
 
